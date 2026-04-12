@@ -1,0 +1,27 @@
+{
+    "name": "kiwiirc-game-plugins",
+    "version": "1.0.0",
+    "private": true,
+    "scripts": {
+        "build": "webpack --mode production",
+        "watch": "webpack --watch --mode development",
+        "dev": "webpack serve --mode development",
+        "build:all": "yarn build && yarn --cwd Connectfour build && yarn --cwd Pictionary build",
+        "build:connectfour": "yarn --cwd Connectfour build",
+        "build:pictionary": "yarn --cwd Pictionary build",
+        "build:tictactoe": "yarn --cwd Tictactoe build"
+    },
+    "devDependencies": {
+        "@babel/core": "^7.22.10",
+        "@babel/preset-env": "^7.22.10",
+        "babel-loader": "9.1.3",
+        "css-loader": "^6.8.1",
+        "style-loader": "^3.3.3",
+        "terser-webpack-plugin": "^5.3.9",
+        "vue-loader": "^15.10.1",
+        "vue-template-compiler": "^2.7.14",
+        "webpack": "^5.88.2",
+        "webpack-cli": "^5.1.4",
+        "webpack-dev-server": "^4.15.1"
+    }
+}
