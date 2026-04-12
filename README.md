@@ -159,6 +159,12 @@ Each game opens automatically in the Kiwi IRC media viewer panel when an invitat
 
 ---
 
+## Credits
+
+Connect Four and Pictionary developed by [milezia](https://milezia.fr).
+
+---
+
 ## License
 
 [Licensed under the Apache License, Version 2.0](LICENSE).
