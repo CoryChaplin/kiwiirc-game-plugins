@@ -81,12 +81,12 @@ All settings are optional — defaults are applied for any omitted key.
     "tictactoe": {
         "enabled": true,
         "button": true,
-        "command": false
+        "command": true
     },
     "connectfour": {
         "enabled": true,
         "button": true,
-        "command": false
+        "command": true
     },
     "pictionary": {
         "enabled": true,
@@ -102,7 +102,7 @@ Each game accepts the same three settings:
 |---------|------|---------|-------------|
 | `enabled` | boolean | `true` | Load this game. Set to `false` to disable it entirely |
 | `button` | boolean | `true` | Show an invite button in the query (PM) window header |
-| `command` | boolean | `false` (ttt, c4) / `true` (pictionary) | Register a slash command to invite by nick |
+| `command` | boolean | `true` | Register a slash command to invite by nick |
 
 #### Slash commands
 

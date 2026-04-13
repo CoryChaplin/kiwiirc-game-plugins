@@ -8,9 +8,9 @@ import { init as initPictionary } from '../Pictionary/src/index.js';
  * Configuration (dans config.json de KiwiIRC) :
  *
  *   "plugin_kiwi_games": {
- *     "tictactoe":   { "enabled": true, "button": true,  "command": false },
- *     "connectfour": { "enabled": true, "button": true,  "command": false },
- *     "pictionary":  { "enabled": true, "button": true,  "command": true  }
+ *     "tictactoe":   { "enabled": true, "button": true, "command": true },
+ *     "connectfour": { "enabled": true, "button": true, "command": true },
+ *     "pictionary":  { "enabled": true, "button": true, "command": true }
  *   }
  *
  * Chaque clé de jeu accepte :
@@ -24,9 +24,9 @@ kiwi.plugin('kiwi-games', function(kiwi) {
     const settings = (kiwi.state.settings && kiwi.state.settings['plugin_kiwi_games']) || {};
 
     const defaults = {
-        tictactoe:   { enabled: true, button: true,  command: false },
-        connectfour: { enabled: true, button: true,  command: false },
-        pictionary:  { enabled: true, button: true,  command: true  },
+        tictactoe:   { enabled: true, button: true, command: true },
+        connectfour: { enabled: true, button: true, command: true },
+        pictionary:  { enabled: true, button: true, command: true },
     };
 
     const cfg = {
