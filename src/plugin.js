@@ -1,5 +1,5 @@
-import { init as initTictactoe } from '../Tictactoe/src/index.js';
-import { init as initConnectFour } from '../Connectfour/src/index.js';
+import { init as initTictactoe } from './games/tictactoe/index.js';
+import { init as initConnectFour } from './games/connectfour/index.js';
 import { init as initPictionary } from '../Pictionary/src/index.js';
 
 /**
