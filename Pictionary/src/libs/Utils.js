@@ -46,7 +46,7 @@ export function terminateGame(game) {
     if (buffer) {
       kiwi.state.addMessage(buffer, {
         nick: '*',
-        message: 'Tu as quitté la partie de Pictionary.',
+        message: 'Tu as quitt\u00e9 la partie de Pictionary.',
         type: 'message',
       });
     }
@@ -60,6 +60,7 @@ export function incrementUnread(buffer) {
     buffer.incrementFlag('unread');
   }
 }
+
 export function inviteToPictionary(network, targetNick, errorBuffer) {
   const nick = (targetNick || '').trim();
   if (!nick) {
@@ -76,7 +77,7 @@ export function inviteToPictionary(network, targetNick, errorBuffer) {
     if (errorBuffer) {
       kiwi.state.addMessage(errorBuffer, {
         nick: '*',
-        message: 'Tu ne peux pas t’inviter toi-même au Pictionary.',
+        message: "Tu ne peux pas t\u2019inviter toi-m\u00eame au Pictionary.",
         type: 'error',
       });
     }
@@ -96,34 +97,32 @@ export function inviteToPictionary(network, targetNick, errorBuffer) {
     if (errorBuffer) {
       kiwi.state.addMessage(errorBuffer, {
         nick: '*',
-        message: 'Une partie ou une invitation est déjà en cours avec ' + nick + '.',
+        message: 'Une partie ou une invitation est d\u00e9j\u00e0 en cours avec ' + nick + '.',
         type: 'error',
       });
     }
     return false;
   }
 
+  const feedbackBuffer = errorBuffer || buffer;
   game.setInviteSent(true);
   if (!game.getInviteTimeout()) {
     game.setInviteTimeout(
       window.setTimeout(() => {
         game.setInviteTimeout(null);
         game.setInviteSent(false);
-        kiwi.state.addMessage(buffer, {
+        kiwi.state.addMessage(feedbackBuffer, {
           nick: '*',
-          message:
-            'L’invitation à ' +
-            buffer.name +
-            ' a expiré — peut-être n’a-t-il pas le plugin Pictionary ?',
+          message: "L\u2019invitation \u00e0 " + buffer.name + " a expir\u00e9 \u2014 peut-\u00eatre n\u2019a-t-il pas le plugin Pictionary\u00a0?",
           type: 'message',
         });
       }, 4000),
     );
   }
   sendData(network, buffer.name, { cmd: 'invite' });
-  kiwi.state.addMessage(buffer, {
+  kiwi.state.addMessage(feedbackBuffer, {
     nick: '*',
-    message: buffer.name + ' a été invité·e au Pictionary.',
+    message: buffer.name + ' a \u00e9t\u00e9 invit\u00e9\u00b7e au Pictionary.',
     type: 'message',
   });
   return true;

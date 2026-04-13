@@ -98,12 +98,13 @@ export function inviteToConnectFour(network, targetNick, errorBuffer) {
         return false;
     }
 
+    const feedbackBuffer = errorBuffer || buffer;
     game.setInviteSent(true);
     if (!game.getInviteTimeout()) {
         game.setInviteTimeout(window.setTimeout(() => {
             game.setInviteTimeout(null);
             game.setInviteSent(false);
-            kiwi.state.addMessage(buffer, {
+            kiwi.state.addMessage(feedbackBuffer, {
                 nick: '*',
                 message: 'The invite to ' + nick + ' timed out — maybe they don\'t have the Connect Four plugin?',
                 type: 'message',
@@ -111,7 +112,7 @@ export function inviteToConnectFour(network, targetNick, errorBuffer) {
         }, 4000));
     }
     sendData(network, nick, { cmd: 'invite' });
-    kiwi.state.addMessage(buffer, {
+    kiwi.state.addMessage(feedbackBuffer, {
         nick: '*', message: nick + ' has been invited to play Connect Four!', type: 'message',
     });
     return true;

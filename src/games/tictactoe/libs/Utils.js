@@ -105,13 +105,14 @@ export function inviteToTictactoe(network, targetNick, errorBuffer) {
         return false;
     }
 
+    const feedbackBuffer = errorBuffer || buffer;
     game.setInviteSent(true);
     if (!game.getInviteTimeout()) {
         game.setInviteTimeout(window.setTimeout(() => {
             game.setInviteTimeout(null);
             game.setInviteSent(false);
             // eslint-disable-next-line no-undef
-            kiwi.state.addMessage(buffer, {
+            kiwi.state.addMessage(feedbackBuffer, {
                 nick: '*',
                 message: 'The invite to ' + nick + ' timed out — maybe they don\'t have the Tic-Tac-Toe plugin?',
                 type: 'message',
@@ -120,7 +121,7 @@ export function inviteToTictactoe(network, targetNick, errorBuffer) {
     }
     sendData(network, nick, { cmd: 'invite' });
     // eslint-disable-next-line no-undef
-    kiwi.state.addMessage(buffer, {
+    kiwi.state.addMessage(feedbackBuffer, {
         nick: '*', message: nick + ' has been invited to play Tic-Tac-Toe!', type: 'message',
     });
     return true;
