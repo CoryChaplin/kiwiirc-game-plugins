@@ -1,7 +1,12 @@
 <template>
   <div id="pictionary-game">
     <div v-if="game && game.getShowInvite()" class="pict-invite">
-      <p class="pict-invite__text">Invitation au Pictionary</p>
+      <p class="pict-invite__text">
+        <template v-if="game.isChannelGame()">
+          Invitation Pictionary pour le salon <strong>{{ game.getTagTarget() }}</strong>
+        </template>
+        <template v-else>Invitation au Pictionary</template>
+      </p>
       <div class="pict-invite__actions">
         <button type="button" class="pict-invite__btn pict-invite__btn--accept" @click="inviteClicked(true)">
           Accepter
@@ -10,6 +15,33 @@
           Refuser
         </button>
       </div>
+    </div>
+
+    <div v-else-if="game && game.getShowLobby()" class="pict-lobby">
+      <p class="pict-lobby__title">Pictionary — salon</p>
+      <p class="pict-lobby__host">Hôte : <strong>{{ game.getLobbyHostNick() || '—' }}</strong></p>
+      <p class="pict-lobby__players">
+        Joueurs ({{ lobbyParticipantCount }}) : <strong>{{ lobbyParticipantsLabel }}</strong>
+      </p>
+      <div class="pict-lobby__actions">
+        <button
+          v-if="!game.isLocalParticipant()"
+          type="button"
+          class="pict-lobby__btn pict-lobby__btn--join"
+          @click="lobbyJoin"
+        >
+          Rejoindre
+        </button>
+        <button
+          v-if="game.canStartLobby()"
+          type="button"
+          class="pict-lobby__btn pict-lobby__btn--start"
+          @click="lobbyStart"
+        >
+          Commencer la partie
+        </button>
+      </div>
+      <p class="pict-lobby__hint">Au moins 2 joueurs doivent avoir rejoint. Le dessinateur sera tiré au sort.</p>
     </div>
 
     <template v-else-if="game && game.getShowGame()">
@@ -46,7 +78,7 @@
           />
         </div>
 
-        <div v-if="game.isDrawer() && !game.getGameOver()" class="pict-toolbar">
+        <div v-if="game.isDrawer() && !game.getGameOver() && !game.getTurnSolved()" class="pict-toolbar">
           <label class="pict-toolbar__label">
             <input v-model="fillMode" type="checkbox" />
             Seau (remplissage)
@@ -67,12 +99,15 @@
             type="button"
             class="pict-toolbar__undo"
             :disabled="undoDisabled"
-            title="Retire le dernier trait ou remplissage (répéter pour remonter l’historique)"
+            title="Retire le dernier trait ou remplissage (répéter pour remonter l'historique)"
             @click="undoLastStroke"
           >
             Annuler dernier coup
           </button>
           <button type="button" class="pict-toolbar__clear" @click="clearBoard">Effacer</button>
+        </div>
+        <div v-else-if="game.isDrawer() && !game.getGameOver() && game.getTurnSolved()" class="pict-next">
+          <button type="button" class="pict-next__btn" @click="nextTurn">Tour suivant</button>
         </div>
 
         <div v-if="game.isGuesser() && !game.getGameOver()" class="pict-guess">
@@ -85,7 +120,25 @@
             @keyup.enter="submitGuess"
           />
           <button type="button" class="pict-guess__btn" @click="submitGuess">Envoyer</button>
-          <p v-if="game.getLastGuessWrong()" class="pict-guess__hint">Ce n’est pas ça — réessaie.</p>
+          <p v-if="game.getLastGuessWrong()" class="pict-guess__hint">Ce n'est pas ça — réessaie.</p>
+        </div>
+
+        <div v-if="game.getGameOver() && scoreRows.length" class="pict-scoreboard">
+          <p class="pict-scoreboard__title">Scores finaux (mots trouvés)</p>
+          <table class="pict-scoreboard__table">
+            <thead>
+              <tr>
+                <th>Joueur</th>
+                <th>Score</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="row in scoreRows" :key="row.nick">
+                <td>{{ row.nick }}</td>
+                <td>{{ row.score }}</td>
+              </tr>
+            </tbody>
+          </table>
         </div>
       </div>
     </template>
@@ -121,7 +174,16 @@ export default {
   computed: {
     game() {
       const buffer = kiwi.state.getActiveBuffer();
-      return Utils.getGame(buffer.name);
+      return Utils.getGameForBuffer(buffer);
+    },
+    lobbyParticipantCount() {
+      if (!this.game) return 0;
+      return this.game.getParticipants().length;
+    },
+    lobbyParticipantsLabel() {
+      if (!this.game) return '';
+      const p = this.game.getParticipants();
+      return p.length ? p.join(', ') : '—';
     },
     statusClass() {
       if (!this.game) return '';
@@ -137,8 +199,18 @@ export default {
       if (this.fillMode) return { 'pict-canvas--fill': true };
       return { 'pict-canvas--draw': true };
     },
+    scoreRows() {
+      if (!this.game || typeof this.game.getScoresByNick !== 'function') return [];
+      const scores = this.game.getScoresByNick();
+      const rows = Object.keys(scores).map((nick) => ({ nick, score: scores[nick] || 0 }));
+      rows.sort((a, b) => b.score - a.score || a.nick.localeCompare(b.nick));
+      return rows;
+    },
   },
   mounted() {
+    this.listen(kiwi, 'plugin-pictionary.update-button', () => {
+      this.$forceUpdate();
+    });
     this.listen(kiwi, 'plugin-pictionary.redraw-canvas', () => {
       this.$nextTick(() => this.redraw());
     });
@@ -296,7 +368,7 @@ export default {
       if (!floodFillImageData(trial, bw, bh, sx, sy, rgb.r, rgb.g, rgb.b)) return;
       this.game.addPaintOp({ type: 'fill', nx: p.x, ny: p.y, color: this.fillColor });
       const buffer = kiwi.state.getActiveBuffer();
-      Utils.sendData(buffer.getNetwork(), this.game.getRemotePlayer(), {
+      Utils.sendData(buffer.getNetwork(), this.game.getTagTarget(), {
         cmd: 'fill',
         nx: p.x,
         ny: p.y,
@@ -364,7 +436,7 @@ export default {
         };
         this.game.addPaintOp({ type: 'stroke', ...stroke });
         const buffer = kiwi.state.getActiveBuffer();
-        Utils.sendData(buffer.getNetwork(), this.game.getRemotePlayer(), {
+        Utils.sendData(buffer.getNetwork(), this.game.getTagTarget(), {
           cmd: 'stroke',
           points: stroke.points,
           color: stroke.color,
@@ -407,7 +479,7 @@ export default {
       if (!this.game || !this.game.isDrawer() || this.game.getGameOver()) return;
       this.game.clearPaintOps();
       const buffer = kiwi.state.getActiveBuffer();
-      Utils.sendData(buffer.getNetwork(), this.game.getRemotePlayer(), { cmd: 'clear' });
+      Utils.sendData(buffer.getNetwork(), this.game.getTagTarget(), { cmd: 'clear' });
       this.redraw();
     },
     undoLastStroke() {
@@ -415,7 +487,7 @@ export default {
       if (this.game.getPaintOps().length === 0) return;
       this.game.popLastPaintOp();
       const buffer = kiwi.state.getActiveBuffer();
-      Utils.sendData(buffer.getNetwork(), this.game.getRemotePlayer(), { cmd: 'undo' });
+      Utils.sendData(buffer.getNetwork(), this.game.getTagTarget(), { cmd: 'undo' });
       kiwi.emit('plugin-pictionary.redraw-canvas');
     },
     submitGuess() {
@@ -424,7 +496,7 @@ export default {
       if (!text) return;
       this.game.setLastGuessWrong(false);
       const buffer = kiwi.state.getActiveBuffer();
-      Utils.sendData(buffer.getNetwork(), this.game.getRemotePlayer(), {
+      Utils.sendData(buffer.getNetwork(), this.game.getTagTarget(), {
         cmd: 'guess',
         text,
       });
@@ -432,18 +504,99 @@ export default {
     },
     inviteClicked(accepted) {
       const network = kiwi.state.getActiveNetwork();
-      const remotePlayer = kiwi.state.getActiveBuffer().name;
-      const game = Utils.getGame(remotePlayer);
+      const buffer = kiwi.state.getActiveBuffer();
+      const game = Utils.getGameForBuffer(buffer);
+      if (!game) return;
       game.setShowInvite(false);
       game.setInviteSent(false);
+      if (game.isChannelGame()) {
+        const roomName = game.getTagTarget();
+        const hostNick = game.getLobbyHostNick();
+        if (accepted) {
+          try {
+            if (network && network.ircClient && typeof network.ircClient.Message === 'function') {
+              const joinMsg = new network.ircClient.Message('JOIN', roomName);
+              joinMsg.prefix = network.nick;
+              network.ircClient.raw(joinMsg);
+            } else if (network && network.ircClient && typeof network.ircClient.raw === 'function') {
+              network.ircClient.raw(`JOIN ${roomName}`);
+            }
+          } catch (_) {
+            /* ignore join errors in mock/old runtimes */
+          }
+          game.setShowLobby(true);
+          if (hostNick) {
+            Utils.sendData(network, hostNick, {
+              cmd: 'room_accept',
+              room: roomName,
+            });
+          }
+          Utils.sendData(network, roomName, { cmd: 'lobby_join', nick: network.nick });
+          kiwi.emit('plugin-pictionary.update-button');
+        } else {
+          Utils.removeGame(game.getGameKey());
+          kiwi.emit('plugin-pictionary.update-button');
+          kiwi.emit('mediaviewer.hide');
+        }
+        return;
+      }
+
+      const peer = buffer.name;
       if (accepted) {
-        const drawer = Math.random() < 0.5 ? network.nick : remotePlayer;
+        const drawer = Math.random() < 0.5 ? network.nick : peer;
         game.startGame(drawer);
-        Utils.sendData(network, remotePlayer, { cmd: 'invite_accepted', drawer });
+        Utils.sendData(network, peer, { cmd: 'invite_accepted', drawer });
       } else {
-        Utils.sendData(network, remotePlayer, { cmd: 'invite_declined' });
+        Utils.sendData(network, peer, { cmd: 'invite_declined' });
         kiwi.emit('mediaviewer.hide');
       }
+    },
+    lobbyJoin() {
+      const buffer = kiwi.state.getActiveBuffer();
+      const network = buffer.getNetwork();
+      const game = Utils.getGameForBuffer(buffer);
+      if (!game || !game.isChannelGame() || !game.getShowLobby()) return;
+      game.addParticipant(network.nick);
+      Utils.sendData(network, buffer.name, { cmd: 'lobby_join', nick: network.nick });
+      kiwi.emit('plugin-pictionary.update-button');
+    },
+    lobbyStart() {
+      const buffer = kiwi.state.getActiveBuffer();
+      const network = buffer.getNetwork();
+      const game = Utils.getGameForBuffer(buffer);
+      if (!game || !game.canStartLobby()) return;
+      const participants = game.getParticipants();
+      const turnOrder = participants.slice();
+      for (let i = turnOrder.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        const tmp = turnOrder[i];
+        turnOrder[i] = turnOrder[j];
+        turnOrder[j] = tmp;
+      }
+      const turnsPlayedByNick = {};
+      const scoresByNick = {};
+      turnOrder.forEach((nick) => {
+        turnsPlayedByNick[nick] = 0;
+        scoresByNick[nick] = 0;
+      });
+      const drawer = participants[Math.floor(Math.random() * participants.length)];
+      Utils.sendData(network, buffer.name, {
+        cmd: 'game_start',
+        drawer,
+        participants: participants.slice(),
+        turnOrder,
+        turnsPlayedByNick,
+        scoresByNick,
+      });
+    },
+    nextTurn() {
+      const buffer = kiwi.state.getActiveBuffer();
+      const network = buffer.getNetwork();
+      const game = Utils.getGameForBuffer(buffer);
+      if (!game || !game.canGoNextTurn()) return;
+      const payload = game.buildNextTurnPayload();
+      if (!payload) return;
+      Utils.sendData(network, buffer.name, { cmd: 'next_turn', ...payload });
     },
   },
 };
@@ -505,6 +658,60 @@ export default {
 .pict-invite__btn--decline {
   background: var(--brand-error, #bf5155);
   color: #fff;
+}
+
+.pict-lobby {
+  padding: 16px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--comp-border, #b2b2b2);
+  background: var(--brand-default-bg);
+  color: var(--brand-default-fg);
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.pict-lobby__title {
+  margin: 0 0 10px;
+  font-size: 1.05em;
+  font-weight: 700;
+}
+
+.pict-lobby__host,
+.pict-lobby__players {
+  margin: 6px 0;
+  font-size: 0.92em;
+}
+
+.pict-lobby__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 14px 0 10px;
+}
+
+.pict-lobby__btn {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.9em;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.pict-lobby__btn--join {
+  background: var(--brand-primary, #42b992);
+  color: #fff;
+}
+
+.pict-lobby__btn--start {
+  background: #3a7ca5;
+  color: #fff;
+}
+
+.pict-lobby__hint {
+  margin: 0;
+  font-size: 0.82em;
+  opacity: 0.88;
 }
 
 .pict-status {
@@ -582,6 +789,23 @@ export default {
   color: var(--brand-default-fg);
 }
 
+.pict-next {
+  margin-top: 12px;
+  display: flex;
+  justify-content: center;
+}
+
+.pict-next__btn {
+  padding: 8px 18px;
+  border: none;
+  border-radius: 8px;
+  background: #3a7ca5;
+  color: #fff;
+  font-size: 0.92em;
+  font-weight: 700;
+  cursor: pointer;
+}
+
 .pict-toolbar__label {
   display: inline-flex;
   align-items: center;
@@ -644,5 +868,36 @@ export default {
   margin: 0;
   font-size: 0.85em;
   color: var(--brand-error, #bf5155);
+}
+
+.pict-scoreboard {
+  margin-top: 14px;
+  border: 1px solid var(--comp-border, #b2b2b2);
+  border-radius: 8px;
+  padding: 10px 12px;
+  background: var(--brand-default-bg);
+}
+
+.pict-scoreboard__title {
+  margin: 0 0 8px;
+  font-size: 0.92em;
+  font-weight: 700;
+}
+
+.pict-scoreboard__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9em;
+}
+
+.pict-scoreboard__table th,
+.pict-scoreboard__table td {
+  padding: 6px 4px;
+  border-bottom: 1px solid var(--comp-border, #b2b2b2);
+}
+
+.pict-scoreboard__table th {
+  text-align: left;
+  font-weight: 700;
 }
 </style>

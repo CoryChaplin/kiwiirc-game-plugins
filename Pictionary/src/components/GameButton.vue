@@ -1,119 +1,171 @@
 <template>
-    <div class="pict-header-btn-wrap">
-        <button
-            v-if="showButton"
-            class="u-button u-button-primary pict-header-btn"
-            title="Play Pictionary"
-            @click="buttonClicked"
-        >
-            <svg
-                class="pict-header-btn__icon"
-                viewBox="0 0 20 20"
-                width="13"
-                height="13"
-                fill="currentColor"
-                aria-hidden="true"
-            >
-                <path d="M14.7 2.3a1 1 0 0 1 1.4 0l1.6 1.6a1 1 0 0 1 0 1.4l-9.5 9.5-3.5.5.5-3.5 9.5-9.5z" />
-                <line x1="12" y1="4" x2="16" y2="8" stroke="currentColor" stroke-width="1" />
-                <path d="M2 18 h16" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
-            </svg>
-            Pictionary
-        </button>
-    </div>
+  <div id="pictionary" class="pict-header-btn-wrap" v-if="showButton">
+    <button type="button" class="pict-header-btn" @click="buttonClicked">
+      <span class="pict-header-btn__icon" aria-hidden="true">🖌</span>
+      Pictionary
+    </button>
+  </div>
 </template>
 
 <script>
 /* global kiwi:true */
 
 import * as Utils from '../libs/Utils.js';
+import GameComponent from './GameComponent.vue';
+
+const ROOM_NAME_RE = /^#pictionary\d{8}$/i;
+
+function getChannelMemberNicks(buffer, localNick) {
+  if (!buffer) return [];
+  let rawUsers = null;
+  if (Array.isArray(buffer.users)) {
+    rawUsers = buffer.users;
+  } else if (buffer.users && typeof buffer.users === 'object') {
+    rawUsers = Object.values(buffer.users);
+  } else if (typeof buffer.getUsers === 'function') {
+    rawUsers = buffer.getUsers();
+  }
+  if (!Array.isArray(rawUsers)) return [];
+  const nicks = rawUsers
+    .map((u) => {
+      if (!u) return '';
+      if (typeof u === 'string') return u;
+      if (typeof u.nick === 'string') return u.nick;
+      if (typeof u.username === 'string') return u.username;
+      return '';
+    })
+    .map((n) => n.trim())
+    .filter(Boolean)
+    .filter((n) => n !== localNick);
+  return Array.from(new Set(nicks));
+}
 
 export default {
-    data() {
-        return { count: 0 };
+  data() {
+    return { count: 0 };
+  },
+  computed: {
+    showButton() {
+      // eslint-disable-next-line no-unused-expressions
+      this.count;
+
+      const buffer = kiwi.state.getActiveBuffer();
+      const network = kiwi.state.getActiveNetwork();
+      if (!buffer || !network) {
+        return false;
+      }
+      if (!Utils.bufferIsChannel(buffer) || !ROOM_NAME_RE.test(buffer.name)) {
+        return false;
+      }
+
+      const game = Utils.getGameForBuffer(buffer);
+      if (!game) {
+        return true;
+      }
+
+      const gameActive = game.getShowGame() && !game.getGameOver();
+      const lobbyActive = game.getShowLobby();
+      const inviteActive = game.getInviteSent() || game.getShowInvite();
+      return !gameActive && !lobbyActive && !inviteActive;
     },
-    computed: {
-        showButton() {
-            // count access forces the computed to re-evaluate when the game registry changes
-            // eslint-disable-next-line no-unused-expressions
-            this.count;
-
-            /* eslint-disable no-undef */
-            let buffer = kiwi.state.getActiveBuffer();
-            let network = kiwi.state.getActiveNetwork();
-            /* eslint-enable no-undef */
-
-            // Don't show the button if the user is chatting with themselves
-            if (network.nick === buffer.name) {
-                return false;
-            }
-
-            let game = Utils.getGame(buffer.name);
-            if (!game) {
-                return true;
-            }
-
-            let gameActive = game.getShowGame() && !game.getGameOver();
-            let inviteActive = game.getInviteSent() || game.getShowInvite();
-            return !gameActive && !inviteActive;
-        },
+  },
+  mounted() {
+    this.listen(kiwi, 'plugin-pictionary.update-button', () => {
+      this.forceUpdateUI();
+    });
+  },
+  methods: {
+    forceUpdateUI() {
+      this.count++;
     },
-    mounted() {
-        // eslint-disable-next-line no-undef
-        this.listen(kiwi, 'plugin-pictionary.update-button', () => {
-            this.forceUpdateUI();
+    buttonClicked() {
+      const buffer = kiwi.state.getActiveBuffer();
+      const network = buffer.getNetwork();
+      if (!Utils.bufferIsChannel(buffer) || !ROOM_NAME_RE.test(buffer.name)) {
+        return;
+      }
+
+      const key = Utils.gameKey(network.id, buffer.name);
+      let game = Utils.getGame(key);
+      if (!game) {
+        Utils.newGame(network, network.nick, buffer.name, true);
+        game = Utils.getGame(key);
+      }
+      const gameActive = game.getShowGame() && !game.getGameOver();
+      const lobbyActive = game.getShowLobby();
+      const inviteActive = game.getShowInvite();
+      if (gameActive || lobbyActive || inviteActive) return;
+
+      const invitees = getChannelMemberNicks(buffer, network.nick);
+      if (!invitees.length) {
+        kiwi.state.addMessage(buffer, {
+          nick: '*',
+          message: 'Aucun autre membre détecté dans ce salon pour relancer une partie.',
+          type: 'message',
         });
-    },
-    methods: {
-        forceUpdateUI() {
-            this.count++;
-        },
-        buttonClicked() {
-            /* eslint-disable no-undef */
-            let buffer = kiwi.state.getActiveBuffer();
-            let network = buffer.getNetwork();
-            /* eslint-enable no-undef */
+        return;
+      }
 
-            if (buffer.name === network.nick) {
-                return;
-            }
+      game.setLobbyHostNick(network.nick);
+      game.setShowInvite(false);
+      game.setShowLobby(true);
+      game.setParticipants([network.nick]);
 
-            Utils.inviteToPictionary(network, buffer.name, buffer);
-            this.forceUpdateUI();
-        },
+      Utils.sendData(network, buffer.name, {
+        cmd: 'channel_lobby',
+        host: network.nick,
+        participants: [network.nick],
+      });
+      invitees.forEach((nick) => {
+        Utils.sendData(network, nick, {
+          cmd: 'room_invite',
+          host: network.nick,
+          room: buffer.name,
+          participants: [network.nick],
+        });
+      });
+
+      this.forceUpdateUI();
+      kiwi.state.addMessage(buffer, {
+        nick: '*',
+        message: `Relance Pictionary dans ${buffer.name} — invitations envoyées à ${invitees.join(', ')}.`,
+        type: 'message',
+      });
+      kiwi.emit('mediaviewer.show', { component: GameComponent });
     },
+  },
 };
 </script>
 
-<style>
-.pict-header-btn-wrap {
-    display: inline-flex;
-    align-items: center;
+<style scoped>
+#pictionary .pict-header-btn-wrap {
+  display: inline-flex;
+  align-items: center;
 }
 
 .pict-header-btn {
-    display: inline-flex !important;
-    align-items: center;
-    gap: 5px;
-    padding: 3px 10px !important;
-    font-size: 0.85em;
-    border-radius: 5px;
-    cursor: pointer;
-    transition: opacity 0.2s, transform 0.1s;
-    white-space: nowrap;
+  display: inline-flex !important;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px !important;
+  font-size: 0.85em;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: opacity 0.2s, transform 0.1s;
+  white-space: nowrap;
 }
 
 .pict-header-btn:hover {
-    opacity: 0.88;
-    transform: translateY(-1px);
+  opacity: 0.88;
+  transform: translateY(-1px);
 }
 
 .pict-header-btn:active {
-    transform: translateY(0);
+  transform: translateY(0);
 }
 
 .pict-header-btn__icon {
-    flex-shrink: 0;
-    opacity: 0.9;
+  flex-shrink: 0;
+  opacity: 0.9;
 }
 </style>

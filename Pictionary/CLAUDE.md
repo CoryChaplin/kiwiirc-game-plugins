@@ -13,58 +13,72 @@ No automated tests; testing requires a running Kiwi IRC instance.
 
 ## Architecture
 
-This is a **Kiwi IRC plugin** that enables two users to play Pictionary in private messages.
-One player draws, the other guesses. Communication is peer-to-peer via IRC's `TAGMSG` mechanism
-using the custom tag `+kiwiirc.com/pictionary`.
+Kiwi IRC plugin for Pictionary. Supports two modes:
 
-### Game flow
+- **Mode MP (1v1)** : invitation directe via `/pictionary <nick>`, jeu en message privé.
+- **Mode salon (multijoueur)** : `/pictionary nick1 nick2 ...` crée un salon secret
+  `#pictionary########`, invite les joueurs, lobby d'attente, puis tours en rotation
+  (5 tours par joueur, scores finaux).
 
-1. Player A clicks the header button (or types `/pictionary <nick>`) → sends `invite` TAGMSG to Player B
-2. Player B accepts → sends `invite_accepted` with a randomly-chosen drawer
-3. The drawer's strokes and fills are streamed as `stroke` / `fill` TAGMSGs
-4. The guesser sends `guess` commands; the drawer replies with `guess_result`
-5. A correct guess ends the game
+Communication entièrement peer-to-peer via IRC `TAGMSG` avec le tag `+kiwiirc.com/pictionary`.
 
 ### Key files
 
-- **[src/plugin.js](src/plugin.js)** — Entry point. Registers with Kiwi IRC, wires all IRC
-  events (`irc.raw.TAGMSG`, `irc.nick`, `irc.quit`, `mediaviewer`), dispatches game commands.
-- **[src/libs/Pictionary.js](src/libs/Pictionary.js)** — Game model. Owns state via Vue
-  reactivity. Tracks drawer, secret word, paint operations, and guess feedback.
-- **[src/libs/Utils.js](src/libs/Utils.js)** — Game registry (keyed by remote nick) and helpers:
-  `sendData`, `terminateGame`, `incrementUnread`, `inviteToPictionary`.
-- **[src/libs/words.js](src/libs/words.js)** — Word list and `normalizeGuess` helper.
-- **[src/libs/canvasFloodFill.js](src/libs/canvasFloodFill.js)** — Pure flood-fill on raw
-  `ImageData` (BFS), used for the paint-bucket tool.
-- **[src/components/GameButton.vue](src/components/GameButton.vue)** — Header button; opens the
-  invite flow with a 4-second acceptance timeout.
-- **[src/components/GameComponent.vue](src/components/GameComponent.vue)** — Full game UI:
-  canvas drawing (pointer events, DPI-aware), toolbar (brush, fill, undo, clear), guess input.
-- **[src/kiwi-runtime.js](src/kiwi-runtime.js)** — Proxy that resolves `kiwi` from `window.kiwi`
-  at runtime; lets Webpack bundle the plugin without bundling Kiwi itself.
+- **[src/index.js](src/index.js)** — `export function init(kiwi, config)`. Câble tous les
+  événements IRC (`irc.raw.TAGMSG`, `irc.nick`, `irc.quit`, `mediaviewer`), commandes slash et
+  logique de création de salon.
+- **[src/plugin.js](src/plugin.js)** — Thin wrapper standalone : `kiwi.plugin('pictionary', k => init(k, {...}))`.
+- **[src/libs/Pictionary.js](src/libs/Pictionary.js)** — Modèle de partie. État Vue réactif.
+  Gère drawer, mot secret, ops peinture, participants, ordre des tours, scores, lobby.
+- **[src/libs/Utils.js](src/libs/Utils.js)** — Registry des parties (`gameKey = networkId + bufferName`),
+  `sendData`, `terminateGame`, `getGameForBuffer`, `bufferIsChannel`.
+- **[src/libs/words.js](src/libs/words.js)** — Liste de mots français et `normalizeGuess`.
+- **[src/libs/canvasFloodFill.js](src/libs/canvasFloodFill.js)** — Flood-fill BFS sur `ImageData`.
+- **[src/components/GameButton.vue](src/components/GameButton.vue)** — Bouton header affiché
+  uniquement dans les salons `#pictionary########`, pour relancer une partie.
+- **[src/components/GameComponent.vue](src/components/GameComponent.vue)** — UI complète :
+  panneau invitation, lobby (rejoindre/lancer), canvas dessin, toolbar, saisie devinette,
+  bouton « Tour suivant », tableau des scores finaux.
+- **[src/kiwi-runtime.js](src/kiwi-runtime.js)** — Proxy `window.kiwi` pour Webpack.
 
 ### IRC tag protocol
 
-Commands sent in the `+kiwiirc.com/pictionary` tag value:
+Commandes dans la valeur du tag `+kiwiirc.com/pictionary` :
 
-| Command | Direction | Payload |
+| Commande | Direction | Payload |
 |---|---|---|
-| `invite` | A → B | — |
-| `invite_received` | B → A | — |
-| `invite_accepted` | B → A | `drawer` nick |
-| `invite_declined` | B → A | — |
-| `stroke` | drawer → guesser | `points[]`, `color`, `width` |
-| `fill` | drawer → guesser | `nx`, `ny` (0-1000), `color` |
-| `clear` | drawer → guesser | — |
-| `undo` | drawer → guesser | — |
-| `guess` | guesser → drawer | `text` |
-| `guess_result` | drawer → guesser | `correct`, `word` (on win) |
-| `error` | either → other | `message` |
-| `terminate` | either → other | — |
+| `invite` | A → B (MP) | — |
+| `invite_received` | B → A (MP) | — |
+| `invite_accepted` | B → A (MP) | `drawer` |
+| `invite_declined` | B → A (MP) | — |
+| `room_invite` | hôte → invité (PM) | `host`, `room`, `participants[]` |
+| `room_accept` | invité → hôte | `room` |
+| `room_sync` | hôte → invité tardif | état complet de la partie |
+| `channel_lobby` | hôte → salon | `host`, `participants[]` |
+| `lobby_join` | joueur → salon | `nick` |
+| `lobby_cancel` | hôte → salon | — |
+| `game_start` | hôte → salon | `drawer`, `participants[]`, `turnOrder[]`, `turnsPlayedByNick`, `scoresByNick` |
+| `next_turn` | dessinateur → salon | payload `buildNextTurnPayload()` |
+| `stroke` | dessinateur → cible | `points[]`, `color`, `width` |
+| `fill` | dessinateur → cible | `nx`, `ny` (0-1000), `color` |
+| `clear` | dessinateur → cible | — |
+| `undo` | dessinateur → cible | — |
+| `guess` | devineur → dessinateur | `text` |
+| `guess_result` | dessinateur → cible | `correct`, `word` (si ok), `guesser` |
+| `error` | soit → soit | `message` |
+| `terminate` | soit → soit | — |
 
 ### Canvas coordinate system
 
-All stroke points and fill positions are stored in a **0–1000 normalised space** (independent of
-actual canvas size). `normPoint` converts pointer device coordinates to this space; `redraw`
-maps them back to the current canvas dimensions. This ensures both players see the same drawing
-regardless of window size.
+Espace normalisé **0–1000** indépendant de la taille réelle du canvas. `normPoint` convertit
+les coordonnées pointer vers cet espace ; `redraw` fait le mapping inverse. Les deux joueurs
+voient le même dessin quelle que soit la taille de leur fenêtre.
+
+### Game flow — mode salon
+
+1. `/pictionary nick1 nick2` crée `#pictionary########`, rejoint le salon, envoie
+   `channel_lobby` au salon et `room_invite` à chaque nick.
+2. Les invités acceptent → `room_accept` vers l'hôte + `lobby_join` au salon → lobby visible.
+3. L'hôte clique « Commencer la partie » → `game_start` avec ordre des tours aléatoire.
+4. À la fin d'un tour (mot trouvé) → le dessinateur clique « Tour suivant » → `next_turn`.
+5. Après 5 tours chacun → `next_turn` avec `finished: true` → tableau des scores.
