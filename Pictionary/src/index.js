@@ -239,6 +239,24 @@ export function init(kiwi, config) {
         if (typeof data.nick === 'string') {
           game.addParticipant(data.nick);
         }
+        if (
+          isChannelTarget &&
+          game.isChannelGame() &&
+          game.getLobbyHostNick() === network.nick
+        ) {
+          Utils.sendData(network, target, {
+            cmd: 'lobby_sync',
+            participants: game.getParticipants(),
+          });
+        }
+        kiwi.emit('plugin-pictionary.update-button');
+        break;
+      }
+      case 'lobby_sync': {
+        if (!game || !game.getShowLobby() || game.getShowGame()) break;
+        if (Array.isArray(data.participants) && data.participants.length) {
+          game.setParticipants(data.participants);
+        }
         kiwi.emit('plugin-pictionary.update-button');
         break;
       }
@@ -248,6 +266,19 @@ export function init(kiwi, config) {
         const roomKey = Utils.gameKey(network.id, roomName);
         const roomGame = Utils.getGame(roomKey);
         if (!roomGame) break;
+        if (
+          roomGame.getLobbyHostNick() === network.nick &&
+          roomGame.getShowLobby() &&
+          !roomGame.getShowGame() &&
+          typeof event.nick === 'string' &&
+          event.nick
+        ) {
+          roomGame.addParticipant(event.nick);
+          Utils.sendData(network, roomName, {
+            cmd: 'lobby_sync',
+            participants: roomGame.getParticipants(),
+          });
+        }
         if (roomGame.getShowGame()) {
           Utils.sendData(network, event.nick, {
             cmd: 'room_sync',
@@ -320,6 +351,14 @@ export function init(kiwi, config) {
       }
       case 'game_start': {
         if (!game || !data.drawer) break;
+        if (
+          event.nick === network.nick &&
+          game.getShowGame() &&
+          !game.getGameOver() &&
+          data.drawer === game.getDrawer()
+        ) {
+          break;
+        }
         if (Array.isArray(data.participants)) {
           game.setParticipants(data.participants);
         }
@@ -399,8 +438,12 @@ export function init(kiwi, config) {
           guesser: event.nick,
         });
         if (ok) {
-          const msg = event.nick + ' a trouvé : « ' + game.getWord() + ' » !';
-          game.markTurnSolved(msg);
+          const who = event.nick;
+          const word = game.getWord();
+          const msg = who + ' a trouvé : « ' + word + ' » !';
+          game.addPointForNick(who);
+          game.setLastGuessWrong(false);
+          game.markTurnSolved('Bravo ! ' + who + ' a trouvé : « ' + word + ' ».');
           kiwi.state.addMessage(buffer, {
             nick: '*',
             message: msg,
@@ -413,6 +456,9 @@ export function init(kiwi, config) {
       case 'guess_result': {
         if (!game) break;
         if (data.correct) {
+          if (event.nick === network.nick) {
+            break;
+          }
           if (data.word) {
             game.setWordFromReveal(data.word);
           }
@@ -435,6 +481,18 @@ export function init(kiwi, config) {
       case 'next_turn': {
         if (!game || !game.isChannelGame()) break;
         if (event.nick !== game.getDrawer()) break;
+        if (event.nick === network.nick) {
+          if (data.finished) {
+            if (game.getGameOver()) break;
+          } else if (
+            data.nextDrawer &&
+            game.getDrawer() === data.nextDrawer &&
+            game.getShowGame() &&
+            !game.getGameOver()
+          ) {
+            break;
+          }
+        }
         game.applyNextTurnPayload(data);
         if (game.getShowGame() && !game.getGameOver()) {
           kiwi.state.addMessage(buffer, {

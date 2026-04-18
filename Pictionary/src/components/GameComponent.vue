@@ -62,10 +62,17 @@
           <template v-if="game.getGameOver() && game.getWord()">
             Le mot était : <strong>{{ game.getWord() }}</strong>
           </template>
+          <template v-else-if="game.getTurnSolved()"> Ce tour est terminé — le mot a été trouvé. </template>
           <template v-else> Devine ce que {{ game.getDrawer() }} dessine. </template>
         </div>
 
-        <div ref="canvasWrap" class="pict-canvas-wrap">
+        <div
+          ref="canvasWrap"
+          class="pict-canvas-wrap"
+          :class="{
+            'pict-canvas-wrap--frozen': game.getTurnSolved() && !game.getGameOver() && !game.isDrawer(),
+          }"
+        >
           <canvas
             ref="canvas"
             class="pict-canvas"
@@ -110,7 +117,18 @@
           <button type="button" class="pict-next__btn" @click="nextTurn">Tour suivant</button>
         </div>
 
-        <div v-if="game.isGuesser() && !game.getGameOver()" class="pict-guess">
+        <div
+          v-if="game.getTurnSolved() && !game.getGameOver() && !game.isDrawer()"
+          class="pict-round-solved"
+        >
+          <p class="pict-round-solved__badge">Mot trouvé</p>
+          <p class="pict-round-solved__msg">{{ game.getGameMessage() }}</p>
+          <p class="pict-round-solved__hint">
+            Les devinettes sont closes pour ce tour — le dessinateur lance le suivant.
+          </p>
+        </div>
+
+        <div v-if="game.isGuesser() && !game.getGameOver() && !game.getTurnSolved()" class="pict-guess">
           <input
             v-model="guessText"
             type="text"
@@ -188,6 +206,7 @@ export default {
     statusClass() {
       if (!this.game) return '';
       if (this.game.getGameOver()) return 'pict-status--over';
+      if (this.game.getTurnSolved()) return 'pict-status--solved';
       return 'pict-status--play';
     },
     undoDisabled() {
@@ -491,7 +510,9 @@ export default {
       kiwi.emit('plugin-pictionary.redraw-canvas');
     },
     submitGuess() {
-      if (!this.game || !this.game.isGuesser() || this.game.getGameOver()) return;
+      if (!this.game || !this.game.isGuesser() || this.game.getGameOver() || this.game.getTurnSolved()) {
+        return;
+      }
       const text = (this.guessText || '').trim();
       if (!text) return;
       this.game.setLastGuessWrong(false);
@@ -580,14 +601,24 @@ export default {
         scoresByNick[nick] = 0;
       });
       const drawer = participants[Math.floor(Math.random() * participants.length)];
-      Utils.sendData(network, buffer.name, {
+      const payload = {
         cmd: 'game_start',
         drawer,
         participants: participants.slice(),
         turnOrder,
         turnsPlayedByNick,
         scoresByNick,
+      };
+      game.setParticipants(payload.participants);
+      game.startGame(payload.drawer, payload.turnOrder, payload.turnsPlayedByNick, payload.scoresByNick);
+      game.setInviteSent(false);
+      kiwi.state.addMessage(buffer, {
+        nick: '*',
+        message: 'La partie commence — dessinateur : ' + drawer + '.',
+        type: 'message',
       });
+      Utils.sendData(network, buffer.name, payload);
+      kiwi.emit('plugin-pictionary.update-button');
     },
     nextTurn() {
       const buffer = kiwi.state.getActiveBuffer();
@@ -596,6 +627,16 @@ export default {
       if (!game || !game.canGoNextTurn()) return;
       const payload = game.buildNextTurnPayload();
       if (!payload) return;
+      game.applyNextTurnPayload(payload);
+      if (game.getShowGame() && !game.getGameOver()) {
+        kiwi.state.addMessage(buffer, {
+          nick: '*',
+          message: 'Nouveau tour — dessinateur : ' + game.getDrawer() + '.',
+          type: 'message',
+        });
+      }
+      kiwi.emit('plugin-pictionary.redraw-canvas');
+      kiwi.emit('plugin-pictionary.update-button');
       Utils.sendData(network, buffer.name, { cmd: 'next_turn', ...payload });
     },
   },
@@ -732,6 +773,15 @@ export default {
   border-color: var(--brand-primary, #42b992);
 }
 
+.pict-status--solved {
+  border-width: 2px;
+  border-color: #1a7f4a;
+  background: linear-gradient(180deg, #e8fff3 0%, #d4f5e4 100%);
+  color: #0d3d24;
+  font-size: 1em;
+  padding: 12px 16px;
+}
+
 .pict-status--over {
   border-color: #e6a800;
 }
@@ -764,6 +814,58 @@ export default {
   border: 1px solid var(--comp-border, #b2b2b2);
   background: #e8e8e8;
   line-height: 0;
+}
+
+.pict-canvas-wrap--frozen {
+  position: relative;
+  opacity: 0.88;
+}
+
+.pict-canvas-wrap--frozen::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgba(255, 255, 255, 0.45);
+  pointer-events: none;
+}
+
+.pict-round-solved {
+  margin-top: 14px;
+  padding: 16px 14px;
+  border-radius: 10px;
+  border: 2px solid #1a7f4a;
+  background: linear-gradient(180deg, #f0fff7 0%, #d8f5e6 100%);
+  text-align: center;
+  box-sizing: border-box;
+}
+
+.pict-round-solved__badge {
+  margin: 0 0 8px;
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-size: 0.78em;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  background: #1a7f4a;
+  color: #fff;
+}
+
+.pict-round-solved__msg {
+  margin: 0 0 10px;
+  font-size: 1.05em;
+  font-weight: 700;
+  color: #0d3d24;
+  line-height: 1.35;
+}
+
+.pict-round-solved__hint {
+  margin: 0;
+  font-size: 0.88em;
+  font-weight: 600;
+  color: #1a5c38;
+  opacity: 0.95;
 }
 
 .pict-canvas {
