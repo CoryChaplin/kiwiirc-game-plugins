@@ -52,17 +52,29 @@ function setSecretChannelMode(network, channelName) {
 
 function activateBuffer(kiwi, buffer) {
   if (!kiwi || !kiwi.state || !buffer) return;
-  if (typeof kiwi.state.setActiveBuffer === 'function') {
-    kiwi.state.setActiveBuffer(buffer);
-    return;
-  }
+  const networkId =
+    buffer.networkId || buffer.networkid || (typeof buffer.getNetwork === 'function' && buffer.getNetwork().id);
   if (typeof kiwi.state.setActiveBufferByName === 'function') {
-    kiwi.state.setActiveBufferByName(buffer.networkId || buffer.networkid, buffer.name);
+    if (networkId && buffer.name) {
+      kiwi.state.setActiveBufferByName(networkId, buffer.name);
+      return;
+    }
+  }
+  if (typeof kiwi.state.setActiveBuffer === 'function') {
+    if (kiwi.state.setActiveBuffer.length >= 2 && networkId && buffer.name) {
+      kiwi.state.setActiveBuffer(networkId, buffer.name);
+      return;
+    }
+    kiwi.state.setActiveBuffer(buffer);
     return;
   }
   if (kiwi.state.ui && Object.prototype.hasOwnProperty.call(kiwi.state.ui, 'active_buffer')) {
     kiwi.state.ui.active_buffer = buffer;
   }
+}
+
+function hasInputContext(context) {
+  return !!(context && context.network && context.buffer);
 }
 
 export function init(kiwi, config) {
@@ -126,7 +138,8 @@ export function init(kiwi, config) {
           type: 'message',
         });
         Utils.sendData(network, event.nick, { cmd: 'invite_received' });
-        if (!mediaViewerOpen && kiwi.state.getActiveBuffer().name === event.nick) {
+        const active = kiwi.state.getActiveBuffer();
+        if (!mediaViewerOpen && active && active.name === event.nick) {
           kiwi.emit('mediaviewer.show', { component: GameComponent });
         }
         break;
@@ -150,7 +163,8 @@ export function init(kiwi, config) {
         });
         game.startGame(data.drawer);
         game.setInviteSent(false);
-        if (!mediaViewerOpen && kiwi.state.getActiveBuffer().name === game.getTagTarget()) {
+        const active = kiwi.state.getActiveBuffer();
+        if (!mediaViewerOpen && active && active.name === game.getTagTarget()) {
           kiwi.emit('mediaviewer.show', { component: GameComponent });
         }
         break;
@@ -369,7 +383,8 @@ export function init(kiwi, config) {
           message: 'La partie commence — dessinateur : ' + data.drawer + '.',
           type: 'message',
         });
-        if (!mediaViewerOpen && kiwi.state.getActiveBuffer().name === target) {
+        const active = kiwi.state.getActiveBuffer();
+        if (!mediaViewerOpen && active && active.name === target) {
           kiwi.emit('mediaviewer.show', { component: GameComponent });
         }
         kiwi.emit('plugin-pictionary.update-button');
@@ -642,7 +657,19 @@ export function init(kiwi, config) {
 
   if (cfg.command) {
     kiwi.on('input.command.pictionary', (event, commandNetwork) => {
-      launchPictionaryFromCommand(event, commandNetwork);
+      if (event && event.handled) return;
+      const eventContext =
+        event && typeof event === 'object' && event.context
+          ? event.context
+          : event && typeof event === 'object' && event.network && event.buffer
+            ? event
+            : null;
+      if (eventContext && !hasInputContext(eventContext)) {
+        event.handled = true;
+        return;
+      }
+      const network = commandNetwork || (eventContext && eventContext.network);
+      launchPictionaryFromCommand(event, network);
       if (event && typeof event === 'object') {
         event.handled = true;
       }
@@ -651,7 +678,28 @@ export function init(kiwi, config) {
     kiwi.on('input.raw', (rawInput, rawNetwork, rawEvent) => {
       if (typeof rawInput !== 'string') return;
       if (!/^\/pictionary(\s|$)/i.test(rawInput.trim())) return;
-      launchPictionaryFromCommand({ input: rawInput }, rawNetwork || (rawEvent && rawEvent.network));
+      if (rawEvent && rawEvent.handled) return;
+      const inputContext =
+        rawEvent && typeof rawEvent === 'object' && rawEvent.context
+          ? rawEvent.context
+          : rawEvent && typeof rawEvent === 'object' && rawEvent.network && rawEvent.buffer
+            ? rawEvent
+            : rawNetwork &&
+                typeof rawNetwork === 'object' &&
+                rawNetwork.network &&
+                rawNetwork.buffer
+              ? rawNetwork
+              : null;
+      if (!hasInputContext(inputContext)) {
+        if (rawEvent && typeof rawEvent === 'object') {
+          rawEvent.handled = true;
+        }
+        return;
+      }
+      launchPictionaryFromCommand({ input: rawInput }, inputContext.network);
+      if (rawEvent && typeof rawEvent === 'object') {
+        rawEvent.handled = true;
+      }
     });
   }
 
