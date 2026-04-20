@@ -1,4 +1,7 @@
 import ConnectFour from './ConnectFour.js';
+import { incrementUnread as _incrementUnread, sendData as _sendData } from '../../shared/Utils.js';
+
+const TAG = '+kiwiirc.com/c4';
 
 const games = {};
 
@@ -23,10 +26,7 @@ export function getGames() {
 }
 
 export function sendData(network, target, data) {
-    let msg = new network.ircClient.Message('TAGMSG', target);
-    msg.prefix = network.nick;
-    msg.tags['+kiwiirc.com/c4'] = JSON.stringify(data);
-    network.ircClient.raw(msg);
+    _sendData(network, target, data, TAG);
 }
 
 export function terminateGame(game) {
@@ -55,66 +55,5 @@ export function terminateGame(game) {
 }
 
 export function incrementUnread(buffer) {
-    let activeBuffer = kiwi.state.getActiveBuffer();
-    if (activeBuffer && activeBuffer !== buffer) {
-        buffer.incrementFlag('unread');
-    }
+    _incrementUnread(buffer);
 }
-
-export function inviteToConnectFour(network, targetNick, errorBuffer) {
-    const nick = (targetNick || '').trim();
-    if (!nick) {
-        if (errorBuffer) {
-            kiwi.state.addMessage(errorBuffer, {
-                nick: '*', message: 'Usage: /connectfour <nick>', type: 'error',
-            });
-        }
-        return false;
-    }
-    if (nick === network.nick) {
-        if (errorBuffer) {
-            kiwi.state.addMessage(errorBuffer, {
-                nick: '*', message: 'You cannot invite yourself to play Connect Four.', type: 'error',
-            });
-        }
-        return false;
-    }
-
-    const buffer = kiwi.state.getOrAddBufferByName(network.id, nick);
-
-    if (!getGame(nick)) {
-        newGame(network, network.nick, nick);
-    }
-    const game = getGame(nick);
-
-    if ((game.getShowGame() && !game.getGameOver()) || game.getInviteSent()) {
-        if (errorBuffer) {
-            kiwi.state.addMessage(errorBuffer, {
-                nick: '*',
-                message: 'A game or invite is already active with ' + nick + '.',
-                type: 'error',
-            });
-        }
-        return false;
-    }
-
-    const feedbackBuffer = errorBuffer || buffer;
-    game.setInviteSent(true);
-    if (!game.getInviteTimeout()) {
-        game.setInviteTimeout(window.setTimeout(() => {
-            game.setInviteTimeout(null);
-            game.setInviteSent(false);
-            kiwi.state.addMessage(feedbackBuffer, {
-                nick: '*',
-                message: 'The invite to ' + nick + ' timed out — maybe they don\'t have the Connect Four plugin?',
-                type: 'message',
-            });
-        }, 4000));
-    }
-    sendData(network, nick, { cmd: 'invite' });
-    kiwi.state.addMessage(feedbackBuffer, {
-        nick: '*', message: nick + ' has been invited to play Connect Four!', type: 'message',
-    });
-    return true;
-}
-

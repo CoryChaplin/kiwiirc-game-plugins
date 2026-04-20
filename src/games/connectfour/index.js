@@ -18,12 +18,44 @@ export function init(kiwi, config) {
         kiwi.addUi('header_query', GameButton);
     }
 
+    function inviteToConnectFour(network, targetNick, errorBuffer) {
+        const nick = (targetNick || '').trim();
+        if (!nick) {
+            kiwi.state.addMessage(errorBuffer, { nick: '*', message: 'Usage: /connectfour <nick>', type: 'error' });
+            return;
+        }
+        if (nick === network.nick) {
+            kiwi.state.addMessage(errorBuffer, { nick: '*', message: 'You cannot invite yourself to play Connect Four.', type: 'error' });
+            return;
+        }
+        const buffer = kiwi.state.getOrAddBufferByName(network.id, nick);
+        if (!Utils.getGame(nick)) {
+            Utils.newGame(network, network.nick, nick);
+        }
+        const game = Utils.getGame(nick);
+        if ((game.getShowGame() && !game.getGameOver()) || game.getInviteSent()) {
+            kiwi.state.addMessage(errorBuffer, { nick: '*', message: 'A game or invite is already active with ' + nick + '.', type: 'error' });
+            return;
+        }
+        const feedbackBuffer = errorBuffer || buffer;
+        game.setInviteSent(true);
+        if (!game.getInviteTimeout()) {
+            game.setInviteTimeout(window.setTimeout(() => {
+                game.setInviteTimeout(null);
+                game.setInviteSent(false);
+                kiwi.state.addMessage(feedbackBuffer, { nick: '*', message: 'The invite to ' + nick + ' timed out — maybe they don\'t have the Connect Four plugin?', type: 'message' });
+            }, 4000));
+        }
+        Utils.sendData(network, nick, { cmd: 'invite' });
+        kiwi.state.addMessage(feedbackBuffer, { nick: '*', message: nick + ' has been invited to play Connect Four!', type: 'message' });
+    }
+
     if (cfg.command) {
         kiwi.on('input.command.connectfour', (eventObj, command, params, context) => {
             eventObj.handled = true;
             const { network, buffer } = context;
             if (!network || !buffer) return;
-            Utils.inviteToConnectFour(network, params, buffer);
+            inviteToConnectFour(network, params, buffer);
         });
     }
 

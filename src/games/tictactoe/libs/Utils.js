@@ -1,4 +1,7 @@
 import TicTacToe from './TicTacToe.js';
+import { incrementUnread as _incrementUnread, sendData as _sendData } from '../../shared/Utils.js';
+
+const TAG = '+kiwiirc.com/ttt';
 
 const games = {};
 
@@ -23,10 +26,7 @@ export function getGames() {
 }
 
 export function sendData(network, target, data) {
-    let msg = new network.ircClient.Message('TAGMSG', target);
-    msg.prefix = network.nick;
-    msg.tags['+kiwiirc.com/ttt'] = JSON.stringify(data);
-    network.ircClient.raw(msg);
+    _sendData(network, target, data, TAG);
 }
 
 export function terminateGame(game) {
@@ -34,7 +34,6 @@ export function terminateGame(game) {
         return;
     }
     let network = game.getNetwork();
-    // eslint-disable-next-line no-undef
     let buffer = kiwi.state.getBufferByName(network.id, game.getRemotePlayer());
 
     if (network && game.getShowInvite()) {
@@ -45,7 +44,6 @@ export function terminateGame(game) {
             sendData(network, game.getRemotePlayer(), { cmd: 'terminate' });
         }
         if (buffer) {
-            // eslint-disable-next-line no-undef
             kiwi.state.addMessage(buffer, {
                 nick: '*',
                 message: 'You ended the game of Tic-Tac-Toe!',
@@ -57,72 +55,5 @@ export function terminateGame(game) {
 }
 
 export function incrementUnread(buffer) {
-    // eslint-disable-next-line no-undef
-    let activeBuffer = kiwi.state.getActiveBuffer();
-    if (activeBuffer && activeBuffer !== buffer) {
-        buffer.incrementFlag('unread');
-    }
-}
-
-export function inviteToTictactoe(network, targetNick, errorBuffer) {
-    const nick = (targetNick || '').trim();
-    if (!nick) {
-        if (errorBuffer) {
-            // eslint-disable-next-line no-undef
-            kiwi.state.addMessage(errorBuffer, {
-                nick: '*', message: 'Usage: /tictactoe <nick>', type: 'error',
-            });
-        }
-        return false;
-    }
-    if (nick === network.nick) {
-        if (errorBuffer) {
-            // eslint-disable-next-line no-undef
-            kiwi.state.addMessage(errorBuffer, {
-                nick: '*', message: 'You cannot invite yourself to play Tic-Tac-Toe.', type: 'error',
-            });
-        }
-        return false;
-    }
-
-    // eslint-disable-next-line no-undef
-    const buffer = kiwi.state.getOrAddBufferByName(network.id, nick);
-
-    if (!getGame(nick)) {
-        newGame(network, network.nick, nick);
-    }
-    const game = getGame(nick);
-
-    if ((game.getShowGame() && !game.getGameOver()) || game.getInviteSent()) {
-        if (errorBuffer) {
-            // eslint-disable-next-line no-undef
-            kiwi.state.addMessage(errorBuffer, {
-                nick: '*',
-                message: 'A game or invite is already active with ' + nick + '.',
-                type: 'error',
-            });
-        }
-        return false;
-    }
-
-    const feedbackBuffer = errorBuffer || buffer;
-    game.setInviteSent(true);
-    if (!game.getInviteTimeout()) {
-        game.setInviteTimeout(window.setTimeout(() => {
-            game.setInviteTimeout(null);
-            game.setInviteSent(false);
-            // eslint-disable-next-line no-undef
-            kiwi.state.addMessage(feedbackBuffer, {
-                nick: '*',
-                message: 'The invite to ' + nick + ' timed out — maybe they don\'t have the Tic-Tac-Toe plugin?',
-                type: 'message',
-            });
-        }, 4000));
-    }
-    sendData(network, nick, { cmd: 'invite' });
-    // eslint-disable-next-line no-undef
-    kiwi.state.addMessage(feedbackBuffer, {
-        nick: '*', message: nick + ' has been invited to play Tic-Tac-Toe!', type: 'message',
-    });
-    return true;
+    _incrementUnread(buffer);
 }

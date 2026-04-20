@@ -1,6 +1,6 @@
 import { init as initTictactoe } from './games/tictactoe/index.js';
 import { init as initConnectFour } from './games/connectfour/index.js';
-import { init as initPictionary } from '../Pictionary/src/index.js';
+import { init as initPictionary } from './games/pictionary/index.js';
 
 /**
  * Plugin Kiwi IRC unifié regroupant tous les jeux.

@@ -24,7 +24,6 @@ module.exports = (env, argv) => {
                     use: [{ loader: 'babel-loader' }],
                     include: [
                         path.join(__dirname, 'src'),
-                        path.join(__dirname, 'Pictionary', 'src'),
                     ],
                 },
                 {

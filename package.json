@@ -6,9 +6,6 @@
         "build": "webpack --mode production",
         "watch": "webpack --watch --mode development",
         "dev": "webpack serve --mode development",
-        "build:all": "yarn build && yarn --cwd Connectfour build && yarn --cwd Pictionary build",
-        "build:connectfour": "yarn --cwd Connectfour build",
-        "build:pictionary": "yarn --cwd Pictionary build",
         "build:tictactoe": "yarn --cwd Tictactoe build"
     },
     "devDependencies": {

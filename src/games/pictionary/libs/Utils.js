@@ -1,4 +1,7 @@
 import Pictionary from './Pictionary.js';
+import { incrementUnread as _incrementUnread, sendData as _sendData } from '../../shared/Utils.js';
+
+const TAG = '+kiwiirc.com/pictionary';
 
 const games = {};
 
@@ -41,10 +44,7 @@ export function getGames() {
 }
 
 export function sendData(network, target, data) {
-  const msg = new network.ircClient.Message('TAGMSG', target);
-  msg.prefix = network.nick;
-  msg.tags['+kiwiirc.com/pictionary'] = JSON.stringify(data);
-  network.ircClient.raw(msg);
+  _sendData(network, target, data, TAG);
 }
 
 export function terminateGame(game) {
@@ -78,8 +78,5 @@ export function terminateGame(game) {
 }
 
 export function incrementUnread(buffer) {
-  const activeBuffer = kiwi.state.getActiveBuffer();
-  if (activeBuffer && activeBuffer !== buffer) {
-    buffer.incrementFlag('unread');
-  }
+  _incrementUnread(buffer);
 }
