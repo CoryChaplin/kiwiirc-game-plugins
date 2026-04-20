@@ -735,50 +735,11 @@ export function init(kiwi, config) {
   }
 
   if (cfg.command) {
-    kiwi.on('input.command.pictionary', (event, commandNetwork) => {
+    kiwi.on('input.command.pictionary', (event, _command, _params, context) => {
       if (event && event.handled) return;
-      const eventContext =
-        event && typeof event === 'object' && event.context
-          ? event.context
-          : event && typeof event === 'object' && event.network && event.buffer
-            ? event
-            : null;
-      if (eventContext && !hasInputContext(eventContext)) {
-        event.handled = true;
-        return;
-      }
-      const network = commandNetwork || (eventContext && eventContext.network);
+      event.handled = true;
+      const network = (context && context.network) || kiwi.state.getActiveNetwork();
       launchPictionaryFromCommand(event, network);
-      if (event && typeof event === 'object') {
-        event.handled = true;
-      }
-    });
-
-    kiwi.on('input.raw', (rawInput, rawNetwork, rawEvent) => {
-      if (typeof rawInput !== 'string') return;
-      if (!/^\/pictionary(\s|$)/i.test(rawInput.trim())) return;
-      if (rawEvent && rawEvent.handled) return;
-      const inputContext =
-        rawEvent && typeof rawEvent === 'object' && rawEvent.context
-          ? rawEvent.context
-          : rawEvent && typeof rawEvent === 'object' && rawEvent.network && rawEvent.buffer
-            ? rawEvent
-            : rawNetwork &&
-                typeof rawNetwork === 'object' &&
-                rawNetwork.network &&
-                rawNetwork.buffer
-              ? rawNetwork
-              : null;
-      if (!hasInputContext(inputContext)) {
-        if (rawEvent && typeof rawEvent === 'object') {
-          rawEvent.handled = true;
-        }
-        return;
-      }
-      launchPictionaryFromCommand({ input: rawInput }, inputContext.network);
-      if (rawEvent && typeof rawEvent === 'object') {
-        rawEvent.handled = true;
-      }
     });
   }
 
