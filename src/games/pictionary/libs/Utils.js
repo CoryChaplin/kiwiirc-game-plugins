@@ -80,3 +80,15 @@ export function terminateGame(game) {
 export function incrementUnread(buffer) {
   _incrementUnread(buffer);
 }
+
+export function ircInviteToChannel(network, nick, channelName) {
+  if (!network || !network.ircClient || !nick || !channelName) return;
+  if (nick === network.nick) return;
+  try {
+    if (typeof network.ircClient.raw === 'function') {
+      network.ircClient.raw(`INVITE ${nick} ${channelName}`);
+    }
+  } catch (_) {
+    /* ignore */
+  }
+}

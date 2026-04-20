@@ -1,4 +1,16 @@
-import { randomWord, normalizeGuess } from './words.js';
+import {
+  randomWord,
+  pickUnusedWords,
+  normalizeGuess,
+  dedupeWordsUsedList,
+  isDictionaryPoolExhausted,
+} from './words.js';
+
+function listHasNormalizedWord(list, word) {
+  const sig = normalizeGuess(word);
+  if (!sig) return false;
+  return list.some((entry) => normalizeGuess(entry) === sig);
+}
 
 export default class Pictionary {
   static TURNS_PER_PLAYER = 5;
@@ -34,6 +46,9 @@ export default class Pictionary {
           /** @type {Array<{type:'stroke',points:object[],color:string,width:number}|{type:'fill',nx:number,ny:number,color:string}>} */
           paintOps: [],
           lastGuessWrong: false,
+          wordsUsedThisGame: [],
+          /** @type {string[]} Propositions pour le dessinateur (tour en cours), jusqu’à 3 mots. */
+          wordChoices: [],
         };
       },
     });
@@ -47,45 +62,96 @@ export default class Pictionary {
     return this.data.isChannelGame;
   }
 
-  startGame(drawerNick, turnOrder, turnsPlayedByNick, scoresByNick) {
-    const d = this.data;
+  startGame(drawerNick, turnOrder, turnsPlayedByNick, scoresByNick, wordsUsedOverride) {
+    const state = this.data;
+    const resetWordHistory = !state.showGame || state.gameOver;
     const providedOrder = Array.isArray(turnOrder) && turnOrder.length ? turnOrder.slice() : null;
     const order =
       providedOrder ||
-      (d.turnOrder && d.turnOrder.length ? d.turnOrder.slice() : d.participants.slice());
+      (state.turnOrder && state.turnOrder.length ? state.turnOrder.slice() : state.participants.slice());
     const counts = {};
     const scores = {};
     order.forEach((nick) => {
-      const n =
+      const priorTurnsPlayed =
         turnsPlayedByNick && typeof turnsPlayedByNick[nick] === 'number'
           ? turnsPlayedByNick[nick]
-          : d.turnsPlayedByNick && typeof d.turnsPlayedByNick[nick] === 'number'
-            ? d.turnsPlayedByNick[nick]
+          : state.turnsPlayedByNick && typeof state.turnsPlayedByNick[nick] === 'number'
+            ? state.turnsPlayedByNick[nick]
             : 0;
-      counts[nick] = Math.max(0, Math.min(Pictionary.TURNS_PER_PLAYER, Math.floor(n)));
-      const s =
+      counts[nick] = Math.max(0, Math.min(Pictionary.TURNS_PER_PLAYER, Math.floor(priorTurnsPlayed)));
+      const priorScore =
         scoresByNick && typeof scoresByNick[nick] === 'number'
           ? scoresByNick[nick]
-          : d.scoresByNick && typeof d.scoresByNick[nick] === 'number'
-            ? d.scoresByNick[nick]
+          : state.scoresByNick && typeof state.scoresByNick[nick] === 'number'
+            ? state.scoresByNick[nick]
             : 0;
-      scores[nick] = Math.max(0, Math.floor(s));
+      scores[nick] = Math.max(0, Math.floor(priorScore));
     });
-    d.drawer = drawerNick;
-    d.turnOrder = order;
-    d.turnsPlayedByNick = counts;
-    d.scoresByNick = scores;
-    d.turnSolved = false;
-    d.showGame = true;
-    d.showLobby = false;
-    d.gameOver = false;
-    d.gameMessage = '';
-    d.paintOps = [];
-    d.lastGuessWrong = false;
-    d.secretWord = '';
-    if (d.localPlayer === drawerNick) {
-      d.secretWord = randomWord();
+    if (Array.isArray(wordsUsedOverride)) {
+      state.wordsUsedThisGame = dedupeWordsUsedList(wordsUsedOverride);
+    } else if (resetWordHistory) {
+      state.wordsUsedThisGame = [];
+    } else if (state.secretWord && !listHasNormalizedWord(state.wordsUsedThisGame, state.secretWord)) {
+      state.wordsUsedThisGame.push(state.secretWord);
     }
+    state.drawer = drawerNick;
+    state.turnOrder = order;
+    state.turnsPlayedByNick = counts;
+    state.scoresByNick = scores;
+    state.turnSolved = false;
+    state.showGame = true;
+    state.showLobby = false;
+    state.gameOver = false;
+    state.gameMessage = '';
+    state.paintOps = [];
+    state.lastGuessWrong = false;
+    state.secretWord = '';
+    state.wordChoices = [];
+    if (state.localPlayer === drawerNick) {
+      if (isDictionaryPoolExhausted(state.wordsUsedThisGame)) {
+        state.wordsUsedThisGame = [];
+      }
+      const choices = pickUnusedWords(3, state.wordsUsedThisGame);
+      state.wordChoices = choices;
+      if (choices.length <= 1) {
+        if (choices.length === 1) {
+          state.secretWord = choices[0];
+        } else {
+          const one = pickUnusedWords(1, state.wordsUsedThisGame);
+          state.secretWord = one.length ? one[0] : randomWord();
+        }
+        state.wordChoices = [];
+      }
+    }
+    this.setTurnMessage();
+  }
+
+  getWordChoices() {
+    return this.data.wordChoices.slice();
+  }
+
+  hasPendingDrawerWordChoice() {
+    return (
+      this.isDrawer() &&
+      !this.data.gameOver &&
+      !this.data.turnSolved &&
+      !normalizeGuess(this.data.secretWord) &&
+      this.data.wordChoices.length > 0
+    );
+  }
+
+  chooseDrawerWord(chosen) {
+    if (!this.hasPendingDrawerWordChoice() || typeof chosen !== 'string') return;
+    const pickSig = normalizeGuess(chosen);
+    if (!pickSig) return;
+    const match = this.data.wordChoices.find((w) => normalizeGuess(w) === pickSig);
+    if (!match) return;
+    const proposalExact = new Set(this.data.wordChoices);
+    this.data.wordsUsedThisGame = dedupeWordsUsedList(
+      this.data.wordsUsedThisGame.filter((w) => !proposalExact.has(w) || w === match),
+    );
+    this.data.secretWord = match;
+    this.data.wordChoices = [];
     this.setTurnMessage();
   }
 
@@ -121,26 +187,101 @@ export default class Pictionary {
   }
 
   removeParticipant(nick) {
-    const i = this.data.participants.indexOf(nick);
-    if (i !== -1) {
-      this.data.participants.splice(i, 1);
+    if (!nick) {
+      return { wasParticipant: false, wasDrawer: false };
     }
+    const state = this.data;
+    const wasParticipant = this.isParticipantNick(nick);
+    const wasDrawer = wasParticipant && state.drawer === nick;
+
+    const participantIdx = state.participants.indexOf(nick);
+    if (participantIdx !== -1) {
+      state.participants.splice(participantIdx, 1);
+    }
+    const turnOrderIdx = state.turnOrder.indexOf(nick);
+    if (turnOrderIdx !== -1) {
+      state.turnOrder.splice(turnOrderIdx, 1);
+    }
+    if (state.turnsPlayedByNick && Object.prototype.hasOwnProperty.call(state.turnsPlayedByNick, nick)) {
+      delete state.turnsPlayedByNick[nick];
+    }
+    if (state.scoresByNick && Object.prototype.hasOwnProperty.call(state.scoresByNick, nick)) {
+      delete state.scoresByNick[nick];
+    }
+    return { wasParticipant, wasDrawer };
+  }
+
+  pickNextEligibleDrawer() {
+    const state = this.data;
+    const order = state.turnOrder.length ? state.turnOrder.slice() : state.participants.slice();
+    for (let orderIndex = 0; orderIndex < order.length; orderIndex++) {
+      const candidate = order[orderIndex];
+      if (!this.isParticipantNick(candidate)) {
+        continue;
+      }
+      const turnsPlayed = state.turnsPlayedByNick[candidate];
+      const played = typeof turnsPlayed === 'number' ? turnsPlayed : 0;
+      if (played < Pictionary.TURNS_PER_PLAYER) {
+        return candidate;
+      }
+    }
+    return null;
+  }
+
+  reconcileAfterParticipantRemoved(wasParticipant, wasDrawer) {
+    if (!wasParticipant) {
+      return null;
+    }
+    const state = this.data;
+    if (!state.showGame || state.gameOver) {
+      return 'lobby';
+    }
+    if (state.participants.length < 2) {
+      this.setGameOver('Pas assez de joueurs — partie terminée.');
+      return 'over';
+    }
+    const drawerStillIn = state.drawer && this.isParticipantNick(state.drawer);
+    if (wasDrawer || !drawerStillIn) {
+      const nextDrawer = this.pickNextEligibleDrawer();
+      if (!nextDrawer) {
+        this.setGameOver('Partie terminée — plus de tours à jouer.');
+        return 'over';
+      }
+      this.startGame(nextDrawer, state.turnOrder.slice(), state.turnsPlayedByNick, state.scoresByNick);
+      return 'new_drawer';
+    }
+    this.setTurnMessage();
+    return 'continue';
   }
 
   renameNickEverywhere(oldNick, newNick) {
-    const d = this.data;
-    if (d.tagTarget === oldNick) {
-      d.tagTarget = newNick;
+    const state = this.data;
+    if (state.tagTarget === oldNick) {
+      state.tagTarget = newNick;
     }
-    if (d.drawer === oldNick) {
-      d.drawer = newNick;
+    if (state.drawer === oldNick) {
+      state.drawer = newNick;
     }
-    if (d.lobbyHostNick === oldNick) {
-      d.lobbyHostNick = newNick;
+    if (state.lobbyHostNick === oldNick) {
+      state.lobbyHostNick = newNick;
     }
-    const i = d.participants.indexOf(oldNick);
-    if (i !== -1) {
-      d.participants.splice(i, 1, newNick);
+    const participantIdx = state.participants.indexOf(oldNick);
+    if (participantIdx !== -1) {
+      state.participants.splice(participantIdx, 1, newNick);
+    }
+    const turnOrderIdx = state.turnOrder.indexOf(oldNick);
+    if (turnOrderIdx !== -1) {
+      state.turnOrder.splice(turnOrderIdx, 1, newNick);
+    }
+    if (state.turnsPlayedByNick && Object.prototype.hasOwnProperty.call(state.turnsPlayedByNick, oldNick)) {
+      const turnsPlayed = state.turnsPlayedByNick[oldNick];
+      delete state.turnsPlayedByNick[oldNick];
+      state.turnsPlayedByNick[newNick] = turnsPlayed;
+    }
+    if (state.scoresByNick && Object.prototype.hasOwnProperty.call(state.scoresByNick, oldNick)) {
+      const score = state.scoresByNick[oldNick];
+      delete state.scoresByNick[oldNick];
+      state.scoresByNick[newNick] = score;
     }
   }
 
@@ -164,8 +305,8 @@ export default class Pictionary {
     return this.data.showLobby;
   }
 
-  setShowLobby(v) {
-    this.data.showLobby = v;
+  setShowLobby(value) {
+    this.data.showLobby = value;
   }
 
   canStartLobby() {
@@ -194,6 +335,24 @@ export default class Pictionary {
     return { ...this.data.scoresByNick };
   }
 
+  getWordsUsedThisGame() {
+    return dedupeWordsUsedList(this.data.wordsUsedThisGame.slice());
+  }
+
+  getWordsUsedPayloadList() {
+    const state = this.data;
+    const proposalExact = new Set(state.wordChoices || []);
+    const chosen = state.secretWord;
+    let list = dedupeWordsUsedList(state.wordsUsedThisGame.slice());
+    if (proposalExact.size) {
+      list = list.filter((w) => !proposalExact.has(w) || w === chosen);
+    }
+    if (typeof state.secretWord === 'string' && state.secretWord && !listHasNormalizedWord(list, state.secretWord)) {
+      list.push(state.secretWord);
+    }
+    return list;
+  }
+
   addPointForNick(nick) {
     if (!nick) return;
     if (typeof this.data.scoresByNick[nick] !== 'number') {
@@ -202,8 +361,8 @@ export default class Pictionary {
     this.data.scoresByNick[nick] += 1;
   }
 
-  setTurnSolved(v) {
-    this.data.turnSolved = !!v;
+  setTurnSolved(solved) {
+    this.data.turnSolved = !!solved;
   }
 
   markTurnSolved(msg) {
@@ -235,13 +394,14 @@ export default class Pictionary {
         turnsPlayedByNick: counts,
         scoresByNick: this.getScoresByNick(),
         message: 'Partie terminée — tout le monde a dessiné 5 fois.',
+        wordsUsedThisGame: this.getWordsUsedPayloadList(),
       };
     }
 
     const currentIndex = order.indexOf(current);
     let nextDrawer = null;
-    for (let i = 1; i <= order.length; i++) {
-      const candidate = order[(currentIndex + i) % order.length];
+    for (let stepOffset = 1; stepOffset <= order.length; stepOffset++) {
+      const candidate = order[(currentIndex + stepOffset) % order.length];
       if ((counts[candidate] || 0) < Pictionary.TURNS_PER_PLAYER) {
         nextDrawer = candidate;
         break;
@@ -254,6 +414,7 @@ export default class Pictionary {
         turnsPlayedByNick: counts,
         scoresByNick: this.getScoresByNick(),
         message: 'Partie terminée — tout le monde a dessiné 5 fois.',
+        wordsUsedThisGame: this.getWordsUsedPayloadList(),
       };
     }
 
@@ -263,11 +424,15 @@ export default class Pictionary {
       turnOrder: order,
       turnsPlayedByNick: counts,
       scoresByNick: this.getScoresByNick(),
+      wordsUsedThisGame: this.getWordsUsedPayloadList(),
     };
   }
 
   applyNextTurnPayload(payload) {
     if (!payload) return;
+    if (Array.isArray(payload.wordsUsedThisGame)) {
+      this.data.wordsUsedThisGame = dedupeWordsUsedList(payload.wordsUsedThisGame);
+    }
     if (Array.isArray(payload.turnOrder)) {
       this.data.turnOrder = payload.turnOrder.slice();
     }
@@ -288,21 +453,22 @@ export default class Pictionary {
       this.data.turnOrder,
       this.data.turnsPlayedByNick,
       this.data.scoresByNick,
+      this.data.wordsUsedThisGame.slice(),
     );
   }
 
   checkGuess(text) {
-    const word = normalizeGuess(this.data.secretWord);
-    const g = normalizeGuess(text);
-    return word.length > 0 && g === word;
+    const normalizedWord = normalizeGuess(this.data.secretWord);
+    const normalizedGuess = normalizeGuess(text);
+    return normalizedWord.length > 0 && normalizedGuess === normalizedWord;
   }
 
   getWord() {
     return this.data.secretWord;
   }
 
-  setWordFromReveal(w) {
-    this.data.secretWord = w;
+  setWordFromReveal(word) {
+    this.data.secretWord = word;
   }
 
   addPaintOp(op) {
@@ -314,9 +480,9 @@ export default class Pictionary {
   }
 
   popLastPaintOp() {
-    const p = this.data.paintOps;
-    if (p.length > 0) {
-      p.pop();
+    const paintOps = this.data.paintOps;
+    if (paintOps.length > 0) {
+      paintOps.pop();
     }
   }
 
@@ -334,6 +500,8 @@ export default class Pictionary {
     if (this.isDrawer()) {
       if (this.data.turnSolved) {
         this.data.gameMessage = 'Mot trouvé ! Clique sur "Tour suivant".';
+      } else if (this.hasPendingDrawerWordChoice()) {
+        this.data.gameMessage = 'Choisis l’un des trois mots ci-dessous — tu pourras dessiner ensuite.';
       } else {
         this.data.gameMessage = this.data.isChannelGame
           ? 'Tu dessines — les autres devinent.'
@@ -362,8 +530,8 @@ export default class Pictionary {
     return this.data.drawer;
   }
 
-  setDrawer(val) {
-    this.data.drawer = val;
+  setDrawer(nick) {
+    this.data.drawer = nick;
   }
 
   getInviteTimeout() {
@@ -378,8 +546,8 @@ export default class Pictionary {
     return this.data.inviteSent;
   }
 
-  setInviteSent(val) {
-    this.data.inviteSent = val;
+  setInviteSent(sent) {
+    this.data.inviteSent = sent;
   }
 
   getShowInvite() {
@@ -402,15 +570,15 @@ export default class Pictionary {
     return this.data.gameMessage;
   }
 
-  setGameMessage(val) {
-    this.data.gameMessage = val;
+  setGameMessage(message) {
+    this.data.gameMessage = message;
   }
 
   getLastGuessWrong() {
     return this.data.lastGuessWrong;
   }
 
-  setLastGuessWrong(v) {
-    this.data.lastGuessWrong = v;
+  setLastGuessWrong(wrong) {
+    this.data.lastGuessWrong = wrong;
   }
 }

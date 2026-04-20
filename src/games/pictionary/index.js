@@ -14,7 +14,7 @@ function randomRoomName() {
 function parsePictionaryArgs(event) {
   if (!event) return [];
   if (Array.isArray(event.params)) {
-    return event.params.map((x) => String(x || '').trim()).filter(Boolean);
+    return event.params.map((param) => String(param || '').trim()).filter(Boolean);
   }
   const raw =
     (typeof event.input === 'string' && event.input) ||
@@ -43,10 +43,10 @@ function joinChannel(network, channelName) {
   }
 }
 
-function setSecretChannelMode(network, channelName) {
+function setPictionaryRoomModes(network, channelName) {
   if (!network || !network.ircClient || !channelName) return;
   if (typeof network.ircClient.raw === 'function') {
-    network.ircClient.raw(`MODE ${channelName} +s`);
+    network.ircClient.raw(`MODE ${channelName} +is`);
   }
 }
 
@@ -75,6 +75,71 @@ function activateBuffer(kiwi, buffer) {
 
 function hasInputContext(context) {
   return !!(context && context.network && context.buffer);
+}
+
+function pictionaryPartChannel(event) {
+  if (!event || typeof event !== 'object') return '';
+  const channelFromEvent =
+    event.channel ||
+    event.target ||
+    (Array.isArray(event.params) && event.params[0]) ||
+    '';
+  return String(channelFromEvent || '').trim();
+}
+
+function channelNamesMatch(channelA, channelB) {
+  if (!channelA || !channelB) return false;
+  return String(channelA).toLowerCase() === String(channelB).toLowerCase();
+}
+
+function handlePictionaryChannelParticipantGone(kiwi, network, game, gameKey, nick, leftVerb) {
+  const targetBuffer = kiwi.state.getBufferByName(network.id, game.getTagTarget());
+  const removed = game.removeParticipant(nick);
+  if (game.getLobbyHostNick() === nick && game.getShowLobby()) {
+    Utils.removeGame(gameKey);
+    if (targetBuffer) {
+      kiwi.state.addMessage(targetBuffer, {
+        nick: '*',
+        message: "L'hôte a quitté — partie Pictionary annulée.",
+        type: 'message',
+      });
+    }
+    kiwi.emit('plugin-pictionary.update-button');
+    return;
+  }
+  if (game.getShowGame() && !game.getGameOver()) {
+    const outcome = game.reconcileAfterParticipantRemoved(removed.wasParticipant, removed.wasDrawer);
+    if (outcome === 'over' && targetBuffer) {
+      kiwi.state.addMessage(targetBuffer, {
+        nick: '*',
+        message: game.getGameMessage(),
+        type: 'message',
+      });
+    } else if (outcome === 'new_drawer' && targetBuffer) {
+      kiwi.state.addMessage(targetBuffer, {
+        nick: '*',
+        message: `${nick} ${leftVerb} — ${game.getDrawer()} reprend le dessin.`,
+        type: 'message',
+      });
+      kiwi.emit('plugin-pictionary.redraw-canvas');
+    } else if (outcome === 'continue' && targetBuffer && removed.wasParticipant) {
+      kiwi.state.addMessage(targetBuffer, {
+        nick: '*',
+        message: `${nick} ${leftVerb} — la partie continue.`,
+        type: 'message',
+      });
+    }
+    kiwi.emit('plugin-pictionary.update-button');
+    return;
+  }
+  if (game.getShowLobby() && targetBuffer && removed.wasParticipant) {
+    kiwi.state.addMessage(targetBuffer, {
+      nick: '*',
+      message: `${nick} ${leftVerb}.`,
+      type: 'message',
+    });
+  }
+  kiwi.emit('plugin-pictionary.update-button');
 }
 
 export function init(kiwi, config) {
@@ -306,6 +371,7 @@ export function init(kiwi, config) {
             paintOps: roomGame.getPaintOps(),
             gameOver: roomGame.getGameOver(),
             gameMessage: roomGame.getGameMessage(),
+            wordsUsedThisGame: roomGame.getWordsUsedThisGame(),
           });
         }
         break;
@@ -324,7 +390,13 @@ export function init(kiwi, config) {
         }
         roomGame.setShowInvite(false);
         roomGame.setShowLobby(false);
-        roomGame.startGame(data.drawer, data.turnOrder, data.turnsPlayedByNick, data.scoresByNick);
+        roomGame.startGame(
+          data.drawer,
+          data.turnOrder,
+          data.turnsPlayedByNick,
+          data.scoresByNick,
+          Array.isArray(data.wordsUsedThisGame) ? data.wordsUsedThisGame : undefined,
+        );
         if (Array.isArray(data.paintOps)) {
           roomGame.clearPaintOps();
           data.paintOps.forEach((op) => {
@@ -376,7 +448,13 @@ export function init(kiwi, config) {
         if (Array.isArray(data.participants)) {
           game.setParticipants(data.participants);
         }
-        game.startGame(data.drawer, data.turnOrder, data.turnsPlayedByNick, data.scoresByNick);
+        game.startGame(
+          data.drawer,
+          data.turnOrder,
+          data.turnsPlayedByNick,
+          data.scoresByNick,
+          Array.isArray(data.wordsUsedThisGame) ? data.wordsUsedThisGame : undefined,
+        );
         game.setInviteSent(false);
         kiwi.state.addMessage(buffer, {
           nick: '*',
@@ -494,7 +572,7 @@ export function init(kiwi, config) {
         break;
       }
       case 'next_turn': {
-        if (!game || !game.isChannelGame()) break;
+        if (!game) break;
         if (event.nick !== game.getDrawer()) break;
         if (event.nick === network.nick) {
           if (data.finished) {
@@ -548,8 +626,8 @@ export function init(kiwi, config) {
     }
   });
 
-  kiwi.on('mediaviewer.show', (url) => {
-    mediaViewerOpen = url.component === GameComponent;
+  kiwi.on('mediaviewer.show', (viewerPayload) => {
+    mediaViewerOpen = viewerPayload.component === GameComponent;
   });
 
   kiwi.on('mediaviewer.hide', (event) => {
@@ -566,30 +644,30 @@ export function init(kiwi, config) {
   kiwi.on('irc.nick', (event, network) => {
     if (event.nick === network.nick) {
       Object.keys(Utils.getGames()).forEach((key) => {
-        const g = Utils.getGame(key);
-        if (g) {
-          if (g.getDrawer() === event.nick) {
-            g.setDrawer(event.new_nick);
+        const game = Utils.getGame(key);
+        if (game) {
+          if (game.getDrawer() === event.nick) {
+            game.setDrawer(event.new_nick);
           }
-          g.setLocalPlayer(event.new_nick);
+          game.setLocalPlayer(event.new_nick);
         }
       });
       return;
     }
 
     Object.keys(Utils.getGames()).forEach((key) => {
-      const g = Utils.getGame(key);
-      if (!g) return;
-      if (g.isChannelGame()) {
-        g.renameNickEverywhere(event.nick, event.new_nick);
+      const game = Utils.getGame(key);
+      if (!game) return;
+      if (game.isChannelGame()) {
+        game.renameNickEverywhere(event.nick, event.new_nick);
         return;
       }
       const pmKey = Utils.gameKey(network.id, event.nick);
       if (key === pmKey) {
-        g.renameNickEverywhere(event.nick, event.new_nick);
-        g._gameKey = Utils.gameKey(network.id, event.new_nick);
+        game.renameNickEverywhere(event.nick, event.new_nick);
+        game._gameKey = Utils.gameKey(network.id, event.new_nick);
         Utils.setGame(key, null);
-        Utils.setGame(g._gameKey, g);
+        Utils.setGame(game._gameKey, game);
       }
     });
   });
@@ -598,8 +676,8 @@ export function init(kiwi, config) {
     const network = explicitNetwork || kiwi.state.getActiveNetwork();
     if (!network || !network.nick) return;
     const players = parsePictionaryArgs(commandEvent)
-      .map((x) => x.replace(/^@+/, '').trim())
-      .filter((x) => x && x !== network.nick);
+      .map((token) => token.replace(/^@+/, '').trim())
+      .filter((token) => token && token !== network.nick);
     if (!players.length) {
       const activeBuffer = kiwi.state.getActiveBuffer();
       if (activeBuffer) {
@@ -615,7 +693,7 @@ export function init(kiwi, config) {
     const uniquePlayers = Array.from(new Set(players));
     const roomName = randomRoomName();
     joinChannel(network, roomName);
-    setSecretChannelMode(network, roomName);
+    setPictionaryRoomModes(network, roomName);
     const roomBuffer = kiwi.state.getOrAddBufferByName(network.id, roomName);
     const roomKey = Utils.gameKey(network.id, roomName);
     let roomGame = Utils.getGame(roomKey);
@@ -637,6 +715,7 @@ export function init(kiwi, config) {
     });
 
     uniquePlayers.forEach((nick) => {
+      Utils.ircInviteToChannel(network, nick, roomName);
       Utils.sendData(network, nick, {
         cmd: 'room_invite',
         host: network.nick,
@@ -706,8 +785,8 @@ export function init(kiwi, config) {
   kiwi.on('irc.quit', (event, network) => {
     if (event.nick === network.nick) {
       Object.keys(Utils.getGames()).forEach((key) => {
-        const g = Utils.getGame(key);
-        if (g && g.getInviteSent()) {
+        const game = Utils.getGame(key);
+        if (game && game.getInviteSent()) {
           Utils.removeGame(key);
         }
       });
@@ -716,42 +795,31 @@ export function init(kiwi, config) {
     }
 
     Object.keys(Utils.getGames()).forEach((key) => {
-      const g = Utils.getGame(key);
-      if (!g) return;
+      const game = Utils.getGame(key);
+      if (!game) return;
 
-      if (g.isChannelGame()) {
-        g.removeParticipant(event.nick);
-        if (g.getLobbyHostNick() === event.nick && g.getShowLobby()) {
-          Utils.removeGame(key);
-          const buf = kiwi.state.getBufferByName(network.id, g.getTagTarget());
-          if (buf) {
-            kiwi.state.addMessage(buf, {
-              nick: '*',
-              message: "L'hôte a quitté — partie Pictionary annulée.",
-              type: 'message',
-            });
-          }
-          kiwi.emit('plugin-pictionary.update-button');
-        } else if (g.getDrawer() === event.nick && g.getShowGame() && !g.getGameOver()) {
-          g.setGameOver(event.nick + ' a quitté le salon.');
-          const buf = kiwi.state.getBufferByName(network.id, g.getTagTarget());
-          if (buf) {
-            kiwi.state.addMessage(buf, {
-              nick: '*',
-              message: event.nick + ' (dessinateur) a quitté — partie terminée.',
-              type: 'message',
-            });
-          }
-          kiwi.emit('plugin-pictionary.update-button');
-        }
+      if (game.isChannelGame()) {
+        handlePictionaryChannelParticipantGone(kiwi, network, game, key, event.nick, "a quitté l'IRC");
         return;
       }
 
       const pmKey = Utils.gameKey(network.id, event.nick);
-      if (key === pmKey && g.getInviteSent()) {
+      if (key === pmKey && game.getInviteSent()) {
         Utils.removeGame(key);
         kiwi.emit('plugin-pictionary.update-button');
       }
+    });
+  });
+
+  kiwi.on('irc.part', (event, network) => {
+    const nick = event && event.nick;
+    const channel = pictionaryPartChannel(event);
+    if (!nick || !channel) return;
+    Object.keys(Utils.getGames()).forEach((key) => {
+      const game = Utils.getGame(key);
+      if (!game || !game.isChannelGame()) return;
+      if (!channelNamesMatch(game.getTagTarget(), channel)) return;
+      handlePictionaryChannelParticipantGone(kiwi, network, game, key, nick, 'a quitté le salon');
     });
   });
 

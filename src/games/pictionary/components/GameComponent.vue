@@ -54,6 +54,20 @@
           <template v-if="game.getGameOver() && game.getWord()">
             Mot : <strong>{{ game.getWord() }}</strong>
           </template>
+          <template v-else-if="game.hasPendingDrawerWordChoice()">
+            <p class="pict-word__pick-title">Mot à faire deviner — choisis-en un :</p>
+            <div class="pict-word__choices">
+              <button
+                v-for="(w, idx) in game.getWordChoices()"
+                :key="idx"
+                type="button"
+                class="pict-word__choice-btn"
+                @click="chooseDrawerWord(w)"
+              >
+                {{ w }}
+              </button>
+            </div>
+          </template>
           <template v-else>
             Mot à faire deviner : <strong>{{ game.getWord() }}</strong>
           </template>
@@ -70,7 +84,9 @@
           ref="canvasWrap"
           class="pict-canvas-wrap"
           :class="{
-            'pict-canvas-wrap--frozen': game.getTurnSolved() && !game.getGameOver() && !game.isDrawer(),
+            'pict-canvas-wrap--frozen':
+              (game.getTurnSolved() && !game.getGameOver() && !game.isDrawer()) ||
+              game.hasPendingDrawerWordChoice(),
           }"
         >
           <canvas
@@ -85,7 +101,10 @@
           />
         </div>
 
-        <div v-if="game.isDrawer() && !game.getGameOver() && !game.getTurnSolved()" class="pict-toolbar">
+        <div
+          v-if="game.isDrawer() && !game.getGameOver() && !game.getTurnSolved() && !game.hasPendingDrawerWordChoice()"
+          class="pict-toolbar"
+        >
           <label class="pict-toolbar__label">
             <input v-model="fillMode" type="checkbox" />
             Seau (remplissage)
@@ -211,10 +230,13 @@ export default {
     },
     undoDisabled() {
       if (!this.game || !this.game.isDrawer() || this.game.getGameOver()) return true;
+      if (this.game.hasPendingDrawerWordChoice()) return true;
       return this.game.getPaintOps().length === 0;
     },
     canvasCursorClass() {
-      if (!this.game || !this.game.isDrawer() || this.game.getGameOver()) return {};
+      if (!this.game || !this.game.isDrawer() || this.game.getGameOver() || this.game.hasPendingDrawerWordChoice()) {
+        return {};
+      }
       if (this.fillMode) return { 'pict-canvas--fill': true };
       return { 'pict-canvas--draw': true };
     },
@@ -369,7 +391,7 @@ export default {
     },
     tryCommitFill(p) {
       const el = this.$refs.canvas;
-      if (!el || !this.game) return;
+      if (!el || !this.game || this.game.hasPendingDrawerWordChoice()) return;
       const w = this.logicalW;
       const h = this.logicalH;
       const lx = (p.x / 1000) * w;
@@ -410,8 +432,15 @@ export default {
       }
       this._capturePointerId = null;
     },
+    chooseDrawerWord(word) {
+      if (!this.game) return;
+      this.game.chooseDrawerWord(word);
+      kiwi.emit('plugin-pictionary.update-button');
+    },
     onPointerDown(e) {
-      if (!this.game || !this.game.isDrawer() || this.game.getGameOver()) return;
+      if (!this.game || !this.game.isDrawer() || this.game.getGameOver() || this.game.hasPendingDrawerWordChoice()) {
+        return;
+      }
       const el = this.$refs.canvas;
       const p = this.normPoint(e.clientX, e.clientY);
       if (!p) return;
@@ -495,14 +524,18 @@ export default {
       ctx.stroke();
     },
     clearBoard() {
-      if (!this.game || !this.game.isDrawer() || this.game.getGameOver()) return;
+      if (!this.game || !this.game.isDrawer() || this.game.getGameOver() || this.game.hasPendingDrawerWordChoice()) {
+        return;
+      }
       this.game.clearPaintOps();
       const buffer = kiwi.state.getActiveBuffer();
       Utils.sendData(buffer.getNetwork(), this.game.getTagTarget(), { cmd: 'clear' });
       this.redraw();
     },
     undoLastStroke() {
-      if (!this.game || !this.game.isDrawer() || this.game.getGameOver()) return;
+      if (!this.game || !this.game.isDrawer() || this.game.getGameOver() || this.game.hasPendingDrawerWordChoice()) {
+        return;
+      }
       if (this.game.getPaintOps().length === 0) return;
       this.game.popLastPaintOp();
       const buffer = kiwi.state.getActiveBuffer();
@@ -608,6 +641,7 @@ export default {
         turnOrder,
         turnsPlayedByNick,
         scoresByNick,
+        wordsUsedThisGame: [],
       };
       game.setParticipants(payload.participants);
       game.startGame(payload.drawer, payload.turnOrder, payload.turnsPlayedByNick, payload.scoresByNick);
@@ -804,6 +838,39 @@ export default {
 .pict-word--hidden {
   font-style: italic;
   opacity: 0.9;
+}
+
+.pict-word__pick-title {
+  margin: 0 0 10px;
+  font-size: 0.95em;
+  font-weight: 600;
+}
+
+.pict-word__choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+  align-items: stretch;
+}
+
+.pict-word__choice-btn {
+  flex: 1 1 140px;
+  max-width: 100%;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--comp-border, #b2b2b2);
+  background: var(--brand-default-bg);
+  color: var(--brand-default-fg);
+  font-size: 0.92em;
+  font-weight: 600;
+  cursor: pointer;
+  line-height: 1.25;
+}
+
+.pict-word__choice-btn:hover {
+  border-color: #4a90d9;
+  background: rgba(74, 144, 217, 0.08);
 }
 
 .pict-canvas-wrap {

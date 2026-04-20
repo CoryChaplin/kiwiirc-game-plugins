@@ -117,6 +117,7 @@ export default {
         participants: [network.nick],
       });
       invitees.forEach((nick) => {
+        Utils.ircInviteToChannel(network, nick, buffer.name);
         Utils.sendData(network, nick, {
           cmd: 'room_invite',
           host: network.nick,
