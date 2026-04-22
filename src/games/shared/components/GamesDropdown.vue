@@ -30,11 +30,10 @@ const tttSvg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill
     + '</svg>';
 
 const c4Svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">'
-    + '<path d="M2 22h3v-3M22 22h-3v-3" fill="none" stroke="currentColor" stroke-width="0.8" stroke-linecap="round" stroke-linejoin="round"/>'
-    + '<rect x="4" y="5" width="16" height="14" rx="1" fill="none" stroke="currentColor" stroke-width="0.8"/>'
-    + '<g stroke="currentColor" stroke-width="0.5"><line x1="8" y1="5" x2="8" y2="19"/><line x1="12" y1="5" x2="12" y2="19"/><line x1="16" y1="5" x2="16" y2="19"/></g>'
-    + '<g fill="none" stroke="currentColor" stroke-width="0.6"><circle cx="10" cy="17" r="1.3"/><circle cx="14" cy="17" r="1.3"/><circle cx="14" cy="13" r="1.3"/></g>'
-    + '<g fill="currentColor"><circle cx="6" cy="17" r="1.4"/><circle cx="10" cy="13" r="1.4"/><circle cx="14" cy="9" r="1.4"/><circle cx="18" cy="2" r="1.4"/></g>'
+    + '<circle cx="6" cy="18" r="2.5" fill="currentColor"/>'
+    + '<circle cx="10" cy="14" r="2.5" fill="currentColor"/>'
+    + '<circle cx="14" cy="10" r="2.5" fill="currentColor"/>'
+    + '<circle cx="18" cy="6" r="2.5" fill="currentColor"/>'
     + '</svg>';
 
 const GAME_DEFS = [
@@ -164,19 +163,19 @@ export default {
 }
 
 .games-dropdown-item__icon {
-    width: 18px;
-    height: 18px;
+    width: 24px;
+    height: 24px;
     margin-right: 8px;
     flex-shrink: 0;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 14px;
+    font-size: 18px;
     line-height: 1;
 }
 
 .games-dropdown-item__icon svg {
-    width: 16px;
-    height: 16px;
+    width: 24px;
+    height: 24px;
 }
 </style>
