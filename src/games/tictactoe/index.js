@@ -104,6 +104,7 @@ export function init(kiwi, config) {
             game.startGame(data.startPlayer);
             game.setInviteSent(false);
             game.setTurnMessage();
+            kiwi.emit('plugin-kiwi-games.game-started', { game: 'tictactoe' });
             if (!mediaViewerOpen && kiwi.state.getActiveBuffer().name === game.getRemotePlayer()) {
                 kiwi.emit('mediaviewer.show', { component: GameComponent });
             }
@@ -129,6 +130,9 @@ export function init(kiwi, config) {
                 } else {
                     game.incrementGameTurn();
                     game.checkGame();
+                    if (game.getGameOver()) {
+                        kiwi.emit('plugin-kiwi-games.game-completed', { game: 'tictactoe' });
+                    }
                 }
                 if (!game.getGameOver()) {
                     game.setTurnMessage();

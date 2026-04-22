@@ -195,6 +195,8 @@ export default {
             });
             game.incrementGameTurn();
             game.checkGame();
+            // eslint-disable-next-line no-undef
+            if (game.getGameOver()) kiwi.emit('plugin-kiwi-games.game-completed', { game: 'connectfour' });
             if (!game.getGameOver() && !game.isMyTurn()) {
                 game.setTurnMessage();
             }
@@ -212,6 +214,8 @@ export default {
                 let startPlayer = Math.floor(Math.random() * 2) === 0 ? network.nick : remotePlayer;
                 game.startGame(startPlayer);
                 game.setTurnMessage();
+                // eslint-disable-next-line no-undef
+                kiwi.emit('plugin-kiwi-games.game-started', { game: 'connectfour' });
                 Utils.sendData(network, remotePlayer, {
                     cmd: 'invite_accepted', startPlayer: startPlayer,
                 });

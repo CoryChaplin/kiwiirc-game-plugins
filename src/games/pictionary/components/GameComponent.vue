@@ -599,6 +599,7 @@ export default {
       if (accepted) {
         const drawer = Math.random() < 0.5 ? network.nick : peer;
         game.startGame(drawer);
+        kiwi.emit('plugin-kiwi-games.game-started', { game: 'pictionary' });
         Utils.sendData(network, peer, { cmd: 'invite_accepted', drawer });
       } else {
         Utils.sendData(network, peer, { cmd: 'invite_declined' });
@@ -662,6 +663,9 @@ export default {
       const payload = game.buildNextTurnPayload();
       if (!payload) return;
       game.applyNextTurnPayload(payload);
+      if (payload.finished && game.getGameOver()) {
+        kiwi.emit('plugin-kiwi-games.game-completed', { game: 'pictionary' });
+      }
       if (game.getShowGame() && !game.getGameOver()) {
         kiwi.state.addMessage(buffer, {
           nick: '*',

@@ -219,6 +219,7 @@ export function init(kiwi, config) {
         });
         game.startGame(data.drawer);
         game.setInviteSent(false);
+        kiwi.emit('plugin-kiwi-games.game-started', { game: 'pictionary' });
         const active = kiwi.state.getActiveBuffer();
         if (!mediaViewerOpen && active && active.name === game.getTagTarget()) {
           kiwi.emit('mediaviewer.show', { component: GameComponent });
@@ -578,6 +579,9 @@ export function init(kiwi, config) {
           }
         }
         game.applyNextTurnPayload(data);
+        if (data.finished && game.getGameOver()) {
+          kiwi.emit('plugin-kiwi-games.game-completed', { game: 'pictionary' });
+        }
         if (game.getShowGame() && !game.getGameOver()) {
           kiwi.state.addMessage(buffer, {
             nick: '*',
