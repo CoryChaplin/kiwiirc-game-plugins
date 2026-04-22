@@ -146,15 +146,6 @@ export function init(kiwi, config) {
   const cfg = { button: true, command: true, ...config };
   let mediaViewerOpen = false;
 
-  if (cfg.button) {
-    kiwi.addUi('header_query', GameButton);
-    try {
-      kiwi.addUi('header_channel', GameButton);
-    } catch (e) {
-      /* Kiwi sans slot header_channel : seul le mode MP reste pour ce slot */
-    }
-  }
-
   kiwi.on('irc.raw.TAGMSG', (command, event, network) => {
     const raw = event.tags['+kiwiirc.com/pictionary'];
     if (!raw || raw.charAt(0) !== '{') {

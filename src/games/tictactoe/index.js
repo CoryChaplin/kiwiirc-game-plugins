@@ -14,10 +14,6 @@ export function init(kiwi, config) {
     const cfg = { button: true, command: false, ...config };
     let mediaViewerOpen = false;
 
-    if (cfg.button) {
-        kiwi.addUi('header_query', GameButton);
-    }
-
     function inviteToTictactoe(network, targetNick, errorBuffer) {
         const nick = (targetNick || '').trim();
         if (!nick) {

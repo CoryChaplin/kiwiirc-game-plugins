@@ -1,6 +1,7 @@
 import { init as initTictactoe } from './games/tictactoe/index.js';
 import { init as initConnectFour } from './games/connectfour/index.js';
 import { init as initPictionary } from './games/pictionary/index.js';
+import GamesDropdown from './games/shared/components/GamesDropdown.vue';
 
 /**
  * Plugin Kiwi IRC unifié regroupant tous les jeux.
@@ -43,5 +44,10 @@ kiwi.plugin('kiwi-games', function(kiwi) {
     }
     if (cfg.pictionary.enabled) {
         initPictionary(kiwi, cfg.pictionary);
+    }
+
+    const anyEnabled = cfg.tictactoe.enabled || cfg.connectfour.enabled || cfg.pictionary.enabled;
+    if (anyEnabled) {
+        kiwi.addUi('header_query', GamesDropdown);
     }
 });
