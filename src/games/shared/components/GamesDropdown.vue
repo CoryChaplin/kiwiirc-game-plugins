@@ -12,7 +12,7 @@
                 class="games-dropdown-item"
                 @click="launchGame(game.id)"
             >
-                <span class="games-dropdown-item__icon" v-html="game.icon"></span>{{ game.label }}
+                <i class="games-dropdown-item__icon" v-html="game.icon"></i>{{ game.label }}
             </li>
         </ul>
     </div></div>
