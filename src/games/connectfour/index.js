@@ -43,6 +43,7 @@ export function init(kiwi, config) {
             }, 4000));
         }
         Utils.sendData(network, nick, { cmd: 'invite' });
+        kiwi.emit('plugin-kiwi-games.game-proposed', { game: 'connectfour' });
         kiwi.state.addMessage(feedbackBuffer, { nick: '*', message: nick + ' has been invited to play Connect Four!', type: 'message' });
     }
 

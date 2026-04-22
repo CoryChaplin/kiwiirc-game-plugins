@@ -718,6 +718,7 @@ export function init(kiwi, config) {
         participants: participants.slice(),
       });
     });
+    kiwi.emit('plugin-kiwi-games.game-proposed', { game: 'pictionary' });
 
     kiwi.state.addMessage(roomBuffer, {
       nick: '*',
