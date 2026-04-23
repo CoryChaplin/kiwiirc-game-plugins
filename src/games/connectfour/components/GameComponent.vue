@@ -166,7 +166,10 @@ export default {
                 this.lastDrop.col === cell.id[1];
         },
         dropStyle(rowIndex) {
-            const cellSize = 64;
+            const styles = getComputedStyle(this.$el);
+            const cell = parseFloat(styles.getPropertyValue('--cf-cell')) || 54;
+            const gap = parseFloat(styles.getPropertyValue('--cf-gap')) || 6;
+            const cellSize = cell + gap;
             const dropPx = (rowIndex + 1) * cellSize;
             const duration = Math.max(0.35, rowIndex * 0.07 + 0.25);
             return {
@@ -234,14 +237,36 @@ export default {
    Root container
    ============================================================ */
 #connectfour {
+    --cf-cell: 54px;
+    --cf-disc: 48px;
+    --cf-ghost: 38px;
+    --cf-gap: 6px;
+    --cf-dropzone-h: 44px;
     position: relative;
     display: flex;
     flex-direction: column;
     align-items: center;
+    width: 100%;
+    box-sizing: border-box;
     padding: 12px 8px 20px;
     font-family: 'Source Sans Pro', Helvetica, sans-serif;
     -webkit-user-select: none;
     user-select: none;
+}
+
+@media (max-width: 480px) {
+    #connectfour {
+        --cf-cell: 44px;
+        --cf-disc: 38px;
+        --cf-ghost: 30px;
+        --cf-gap: 4px;
+        --cf-dropzone-h: 38px;
+        padding: 8px 4px 16px;
+    }
+    #connectfour .cf-status {
+        padding: 6px 12px;
+        font-size: 0.9em;
+    }
 }
 
 /* ============================================================
@@ -320,6 +345,8 @@ export default {
     border: 1px solid var(--comp-border, #b2b2b2);
     transition: border-color 0.3s, background 0.3s;
     min-height: 34px;
+    max-width: 100%;
+    box-sizing: border-box;
     box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
 }
 
@@ -350,7 +377,8 @@ export default {
 
 #connectfour .cf-status__text {
     line-height: 1.2;
-    white-space: nowrap;
+    min-width: 0;
+    overflow-wrap: anywhere;
 }
 
 /* ============================================================
@@ -368,9 +396,9 @@ export default {
 #connectfour .cf-dropzone {
     display: flex;
     flex-direction: row;
-    gap: 6px;
+    gap: var(--cf-gap);
     padding: 0 10px;
-    height: 44px;
+    height: var(--cf-dropzone-h);
     align-items: center;
     width: 100%;
     box-sizing: border-box;
@@ -378,7 +406,7 @@ export default {
 
 #connectfour .cf-dropzone__cell {
     flex: 1;
-    height: 44px;
+    height: var(--cf-dropzone-h);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -406,7 +434,7 @@ export default {
 #connectfour .cf-board {
     display: flex;
     flex-direction: row;
-    gap: 6px;
+    gap: var(--cf-gap);
     padding: 10px;
     background: #1a3a6b;
     border-radius: 12px;
@@ -441,7 +469,7 @@ export default {
 #connectfour .cf-board__col {
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: var(--cf-gap);
     border-radius: 6px;
     padding: 2px;
     transition: background 0.15s;
@@ -456,8 +484,8 @@ export default {
    Board slots
    ============================================================ */
 #connectfour .cf-board__slot {
-    width: 54px;
-    height: 54px;
+    width: var(--cf-cell);
+    height: var(--cf-cell);
     position: relative;
     display: flex;
     align-items: center;
@@ -467,8 +495,8 @@ export default {
 
 /* Empty hole */
 #connectfour .cf-board__hole {
-    width: 48px;
-    height: 48px;
+    width: var(--cf-disc);
+    height: var(--cf-disc);
     border-radius: 50%;
     background: #0b1d3a;
     box-shadow:
@@ -481,8 +509,8 @@ export default {
    Discs
    ============================================================ */
 #connectfour .cf-disc {
-    width: 48px;
-    height: 48px;
+    width: var(--cf-disc);
+    height: var(--cf-disc);
     border-radius: 50%;
     position: relative;
     flex-shrink: 0;
@@ -510,8 +538,8 @@ export default {
 
 /* Ghost disc (hover preview) */
 #connectfour .cf-disc--ghost {
-    width: 38px;
-    height: 38px;
+    width: var(--cf-ghost);
+    height: var(--cf-ghost);
     opacity: 0.5;
     pointer-events: none;
 }
