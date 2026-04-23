@@ -3,7 +3,7 @@
         <button
             v-if="showButton"
             class="u-button u-button-primary cf-header-btn"
-            title="Challenge to Connect Four"
+            :title="$t('kiwi-games:c4_challenge_title')"
             @click="buttonClicked"
         >
             <svg class="cf-header-btn__icon" viewBox="0 0 20 20" width="13" height="13" fill="currentColor" aria-hidden="true">
@@ -14,7 +14,7 @@
                 <circle cx="10" cy="13" r="2.5" />
                 <circle cx="16" cy="13" r="2.5" />
             </svg>
-            Connect Four
+            {{ $t('kiwi-games:c4_title') }}
         </button>
     </div>
 </template>
@@ -95,8 +95,7 @@ export default {
                     // eslint-disable-next-line no-undef
                     kiwi.state.addMessage(buffer, {
                         nick: '*',
-                        message: 'The invite to ' + buffer.name +
-                            ' has timed out :( maybe they don\'t have the Connect Four plugin?',
+                        message: kiwi.i18n.t('kiwi-games:c4_invite_timeout', { nick: buffer.name }),
                         type: 'message',
                     });
                 }, 4000));
@@ -106,7 +105,7 @@ export default {
             // eslint-disable-next-line no-undef
             kiwi.state.addMessage(buffer, {
                 nick: '*',
-                message: buffer.name + ' has been invited to play Connect Four!',
+                message: kiwi.i18n.t('kiwi-games:c4_invite_sent', { nick: buffer.name }),
                 type: 'message',
             });
         },

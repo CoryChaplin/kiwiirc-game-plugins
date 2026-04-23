@@ -66,7 +66,8 @@ Chaque jeu expose `export function init(kiwi, config)` — reçoit kiwi en param
 "plugin_kiwi_games": {
   "tictactoe":   { "enabled": true, "button": true,  "command": true },
   "connectfour": { "enabled": true, "button": true,  "command": true },
-  "pictionary":  { "enabled": true, "button": true,  "command": true }
+  "pictionary":  { "enabled": true, "button": true,  "command": true },
+  "localesPath": "/path/to/plugin/kiwi-games/locales"
 }
 ```
 
@@ -75,6 +76,47 @@ Chaque jeu expose `export function init(kiwi, config)` — reçoit kiwi en param
 | `enabled` | bool | `true` | Active/désactive le jeu |
 | `button` | bool | `true` | Affiche le bouton dans le header de la query |
 | `command` | bool | `true` | Enregistre `/tictactoe\|connectfour\|pictionary <nick>` |
+| `localesPath` | string | auto-détecté | URL du dossier de locales (sans `/`  final). Par défaut : dossier du script + `kiwi-games/locales`. |
+
+## Localisation
+
+Tous les textes utilisateur sont externalisés dans `res/locales/` et chargés via `kiwi.i18n` (i18next).
+
+**Namespace** : `kiwi-games`. Interpolation i18next v3 : `{{var}}`.
+
+**Fichiers de locales** :
+- `res/locales/en-us.json` — anglais (fallback)
+- `res/locales/fr-fr.json` — français
+
+À chaque `yarn build`, webpack copie ces fichiers dans `dist/kiwi-games/locales/`.
+
+**Préfixes de clés** :
+
+| Préfixe | Domaine |
+|---|---|
+| `common_` | Partagé entre tous les jeux (Accept, Decline…) |
+| `dropdown_` | Menu déroulant GamesDropdown |
+| `ttt_` | TicTacToe |
+| `c4_` | ConnectFour |
+| `pict_` | Pictionary |
+
+**Utilisation dans les composants Vue** (via le mixin global Kiwi) :
+
+```html
+{{ $t('kiwi-games:c4_invite_text') }}
+{{ $t('kiwi-games:pict_drawer_pm', { nick: game.getTagTarget() }) }}
+```
+
+**Utilisation dans le code JS** (helper `t()` de `src/games/shared/locales.js`) :
+
+```js
+import { t } from '../shared/locales.js';       // depuis <game>/index.js
+import { t } from '../../shared/locales.js';    // depuis <game>/libs/*.js
+
+kiwi.state.addMessage(buffer, { nick: '*', message: t('c4_invite_sent', { nick }), type: 'message' });
+```
+
+**Ajouter une nouvelle langue** : créer `res/locales/<lang>.json` en copiant la structure de `en-us.json`. Le chargeur la récupèrera automatiquement dès que `kiwi.i18n.language` correspondra.
 
 ## Pattern commun à tous les jeux
 

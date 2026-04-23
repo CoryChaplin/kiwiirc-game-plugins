@@ -1,3 +1,4 @@
+import { t } from '../../shared/locales.js';
 import {
   randomWord,
   pickUnusedWords,
@@ -47,7 +48,7 @@ export default class Pictionary {
           paintOps: [],
           lastGuessWrong: false,
           wordsUsedThisGame: [],
-          /** @type {string[]} Propositions pour le dessinateur (tour en cours), jusqu’à 3 mots. */
+          /** @type {string[]} */
           wordChoices: [],
         };
       },
@@ -237,14 +238,14 @@ export default class Pictionary {
       return 'lobby';
     }
     if (state.participants.length < 2) {
-      this.setGameOver('Pas assez de joueurs — partie terminée.');
+      this.setGameOver(t('pict_not_enough_players'));
       return 'over';
     }
     const drawerStillIn = state.drawer && this.isParticipantNick(state.drawer);
     if (wasDrawer || !drawerStillIn) {
       const nextDrawer = this.pickNextEligibleDrawer();
       if (!nextDrawer) {
-        this.setGameOver('Partie terminée — plus de tours à jouer.');
+        this.setGameOver(t('pict_no_more_turns'));
         return 'over';
       }
       this.startGame(nextDrawer, state.turnOrder.slice(), state.turnsPlayedByNick, state.scoresByNick);
@@ -393,7 +394,7 @@ export default class Pictionary {
         turnOrder: order,
         turnsPlayedByNick: counts,
         scoresByNick: this.getScoresByNick(),
-        message: 'Partie terminée — tout le monde a dessiné 5 fois.',
+        message: t('pict_all_done', { turns: Pictionary.TURNS_PER_PLAYER }),
         wordsUsedThisGame: this.getWordsUsedPayloadList(),
       };
     }
@@ -413,7 +414,7 @@ export default class Pictionary {
         turnOrder: order,
         turnsPlayedByNick: counts,
         scoresByNick: this.getScoresByNick(),
-        message: 'Partie terminée — tout le monde a dessiné 5 fois.',
+        message: t('pict_all_done', { turns: Pictionary.TURNS_PER_PLAYER }),
         wordsUsedThisGame: this.getWordsUsedPayloadList(),
       };
     }
@@ -444,7 +445,7 @@ export default class Pictionary {
     }
     if (payload.finished) {
       this.data.turnSolved = false;
-      this.setGameOver(payload.message || 'Partie terminée.');
+      this.setGameOver(payload.message || t('pict_game_over'));
       return;
     }
     if (!payload.nextDrawer) return;
@@ -499,18 +500,18 @@ export default class Pictionary {
     if (this.data.gameOver) return;
     if (this.isDrawer()) {
       if (this.data.turnSolved) {
-        this.data.gameMessage = 'Mot trouvé ! Clique sur "Tour suivant".';
+        this.data.gameMessage = t('pict_word_found_drawer');
       } else if (this.hasPendingDrawerWordChoice()) {
-        this.data.gameMessage = 'Choisis l’un des trois mots ci-dessous — tu pourras dessiner ensuite.';
+        this.data.gameMessage = t('pict_choose_word_hint');
       } else {
         this.data.gameMessage = this.data.isChannelGame
-          ? 'Tu dessines — les autres devinent.'
-          : 'Tu dessines — ' + this.data.tagTarget + ' devine.';
+          ? t('pict_drawer_channel')
+          : t('pict_drawer_pm', { nick: this.data.tagTarget });
       }
     } else if (this.isSpectator()) {
-      this.data.gameMessage = this.data.drawer + ' dessine — tu observes cette partie.';
+      this.data.gameMessage = t('pict_spectating', { drawer: this.data.drawer });
     } else {
-      this.data.gameMessage = this.data.drawer + ' dessine — à toi de deviner !';
+      this.data.gameMessage = t('pict_guessing', { drawer: this.data.drawer });
     }
   }
 

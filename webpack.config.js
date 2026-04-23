@@ -2,6 +2,7 @@ const path = require('path');
 const webpack = require('webpack');
 const VueLoaderPlugin = require('vue-loader/lib/plugin');
 const TerserPlugin = require('terser-webpack-plugin');
+const CopyWebpackPlugin = require('copy-webpack-plugin');
 
 module.exports = (env, argv) => {
     const mode = (argv && argv.mode) || 'production';
@@ -34,10 +35,16 @@ module.exports = (env, argv) => {
         },
         plugins: [
             new VueLoaderPlugin(),
-            // Remplace toutes les références globales à `kiwi` par le proxy runtime.
-            // En production (chargé dans Kiwi IRC), window.kiwi est défini au préalable.
             new webpack.ProvidePlugin({
                 kiwi: path.resolve(__dirname, 'src/kiwi-runtime.js'),
+            }),
+            new CopyWebpackPlugin({
+                patterns: [
+                    {
+                        from: path.resolve(__dirname, 'res/locales'),
+                        to: 'kiwi-games/locales',
+                    },
+                ],
             }),
         ],
         performance: {

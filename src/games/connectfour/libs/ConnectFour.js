@@ -1,3 +1,5 @@
+import { t } from '../../shared/locales.js';
+
 const ROWS = 6;
 const COLS = 7;
 
@@ -136,7 +138,7 @@ export default class ConnectFour {
         }
 
         if (winningLine) {
-            this.data.gameMessage = 'Winner: ' + winner;
+            this.data.gameMessage = t('c4_winner', { winner });
             this.data.gameOver = true;
             winningLine.forEach(([r, c]) => {
                 board[r][c].win = true;
@@ -144,10 +146,9 @@ export default class ConnectFour {
             return;
         }
 
-        // Vérifie le match nul seulement si pas de gagnant
         const isDraw = board.every((row) => row.every((cell) => cell.val !== ''));
         if (isDraw) {
-            this.data.gameMessage = 'Winner: Draw';
+            this.data.gameMessage = t('c4_winner_draw');
             this.data.gameDraw = true;
             this.data.gameOver = true;
         }
@@ -248,12 +249,11 @@ export default class ConnectFour {
 
     setTurnMessage() {
         this.data.gameMessage = this.isMyTurn()
-            ? 'Your turn!'
-            : 'Waiting for ' + this.data.remotePlayer;
+            ? t('c4_your_turn')
+            : t('c4_waiting', { nick: this.data.remotePlayer });
     }
 
     getBoardValues() {
         return this.data.gameBoard.map((row) => row.map((cell) => cell.val));
     }
 }
-

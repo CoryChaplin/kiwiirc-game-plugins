@@ -3,25 +3,25 @@
     <div v-if="game && game.getShowInvite()" class="pict-invite">
       <p class="pict-invite__text">
         <template v-if="game.isChannelGame()">
-          Invitation Pictionary pour le salon <strong>{{ game.getTagTarget() }}</strong>
+          {{ $t('kiwi-games:pict_invite_text_channel', { room: game.getTagTarget() }) }}
         </template>
-        <template v-else>Invitation au Pictionary</template>
+        <template v-else>{{ $t('kiwi-games:pict_invite_text_pm') }}</template>
       </p>
       <div class="pict-invite__actions">
         <button type="button" class="pict-invite__btn pict-invite__btn--accept" @click="inviteClicked(true)">
-          Accepter
+          {{ $t('kiwi-games:common_accept') }}
         </button>
         <button type="button" class="pict-invite__btn pict-invite__btn--decline" @click="inviteClicked(false)">
-          Refuser
+          {{ $t('kiwi-games:common_decline') }}
         </button>
       </div>
     </div>
 
     <div v-else-if="game && game.getShowLobby()" class="pict-lobby">
-      <p class="pict-lobby__title">Pictionary — salon</p>
-      <p class="pict-lobby__host">Hôte : <strong>{{ game.getLobbyHostNick() || '—' }}</strong></p>
+      <p class="pict-lobby__title">{{ $t('kiwi-games:pict_lobby_title') }}</p>
+      <p class="pict-lobby__host">{{ $t('kiwi-games:pict_lobby_host') }} <strong>{{ game.getLobbyHostNick() || '—' }}</strong></p>
       <p class="pict-lobby__players">
-        Joueurs ({{ lobbyParticipantCount }}) : <strong>{{ lobbyParticipantsLabel }}</strong>
+        {{ $t('kiwi-games:pict_lobby_players', { count: lobbyParticipantCount }) }} <strong>{{ lobbyParticipantsLabel }}</strong>
       </p>
       <div class="pict-lobby__actions">
         <button
@@ -30,7 +30,7 @@
           class="pict-lobby__btn pict-lobby__btn--join"
           @click="lobbyJoin"
         >
-          Rejoindre
+          {{ $t('kiwi-games:pict_lobby_join') }}
         </button>
         <button
           v-if="game.canStartLobby()"
@@ -38,10 +38,10 @@
           class="pict-lobby__btn pict-lobby__btn--start"
           @click="lobbyStart"
         >
-          Commencer la partie
+          {{ $t('kiwi-games:pict_lobby_start') }}
         </button>
       </div>
-      <p class="pict-lobby__hint">Au moins 2 joueurs doivent avoir rejoint. Le dessinateur sera tiré au sort.</p>
+      <p class="pict-lobby__hint">{{ $t('kiwi-games:pict_lobby_hint') }}</p>
     </div>
 
     <template v-else-if="game && game.getShowGame()">
@@ -52,10 +52,10 @@
       <div class="pict-play">
         <div v-if="game.isDrawer()" class="pict-word">
           <template v-if="game.getGameOver() && game.getWord()">
-            Mot : <strong>{{ game.getWord() }}</strong>
+            {{ $t('kiwi-games:pict_word_is') }} <strong>{{ game.getWord() }}</strong>
           </template>
           <template v-else-if="game.hasPendingDrawerWordChoice()">
-            <p class="pict-word__pick-title">Mot à faire deviner — choisis-en un :</p>
+            <p class="pict-word__pick-title">{{ $t('kiwi-games:pict_pick_word') }}</p>
             <div class="pict-word__choices">
               <button
                 v-for="(w, idx) in game.getWordChoices()"
@@ -69,15 +69,15 @@
             </div>
           </template>
           <template v-else>
-            Mot à faire deviner : <strong>{{ game.getWord() }}</strong>
+            {{ $t('kiwi-games:pict_word_to_draw') }} <strong>{{ game.getWord() }}</strong>
           </template>
         </div>
         <div v-else class="pict-word pict-word--hidden">
           <template v-if="game.getGameOver() && game.getWord()">
-            Le mot était : <strong>{{ game.getWord() }}</strong>
+            {{ $t('kiwi-games:pict_word_was') }} <strong>{{ game.getWord() }}</strong>
           </template>
-          <template v-else-if="game.getTurnSolved()"> Ce tour est terminé — le mot a été trouvé. </template>
-          <template v-else> Devine ce que {{ game.getDrawer() }} dessine. </template>
+          <template v-else-if="game.getTurnSolved()">{{ $t('kiwi-games:pict_turn_done') }}</template>
+          <template v-else>{{ $t('kiwi-games:pict_guess_hint', { drawer: game.getDrawer() }) }}</template>
         </div>
 
         <div
@@ -107,44 +107,42 @@
         >
           <label class="pict-toolbar__label">
             <input v-model="fillMode" type="checkbox" />
-            Seau (remplissage)
+            {{ $t('kiwi-games:pict_bucket') }}
           </label>
           <label v-if="fillMode" class="pict-toolbar__label">
-            Couleur remplissage
+            {{ $t('kiwi-games:pict_fill_color') }}
             <input v-model="fillColor" type="color" class="pict-toolbar__color" />
           </label>
           <label class="pict-toolbar__label">
-            Couleur trait
+            {{ $t('kiwi-games:pict_brush_color') }}
             <input v-model="brushColor" type="color" class="pict-toolbar__color" />
           </label>
           <label class="pict-toolbar__label">
-            Trait
+            {{ $t('kiwi-games:pict_brush_width') }}
             <input v-model.number="brushWidth" type="range" min="1" max="12" />
           </label>
           <button
             type="button"
             class="pict-toolbar__undo"
             :disabled="undoDisabled"
-            title="Retire le dernier trait ou remplissage (répéter pour remonter l'historique)"
+            :title="$t('kiwi-games:pict_undo_title')"
             @click="undoLastStroke"
           >
-            Annuler dernier coup
+            {{ $t('kiwi-games:pict_undo') }}
           </button>
-          <button type="button" class="pict-toolbar__clear" @click="clearBoard">Effacer</button>
+          <button type="button" class="pict-toolbar__clear" @click="clearBoard">{{ $t('kiwi-games:pict_clear') }}</button>
         </div>
         <div v-else-if="game.isDrawer() && !game.getGameOver() && game.getTurnSolved()" class="pict-next">
-          <button type="button" class="pict-next__btn" @click="nextTurn">Tour suivant</button>
+          <button type="button" class="pict-next__btn" @click="nextTurn">{{ $t('kiwi-games:pict_next_turn_btn') }}</button>
         </div>
 
         <div
           v-if="game.getTurnSolved() && !game.getGameOver() && !game.isDrawer()"
           class="pict-round-solved"
         >
-          <p class="pict-round-solved__badge">Mot trouvé</p>
+          <p class="pict-round-solved__badge">{{ $t('kiwi-games:pict_word_found_badge') }}</p>
           <p class="pict-round-solved__msg">{{ game.getGameMessage() }}</p>
-          <p class="pict-round-solved__hint">
-            Les devinettes sont closes pour ce tour — le dessinateur lance le suivant.
-          </p>
+          <p class="pict-round-solved__hint">{{ $t('kiwi-games:pict_guess_closed') }}</p>
         </div>
 
         <div v-if="game.isGuesser() && !game.getGameOver() && !game.getTurnSolved()" class="pict-guess">
@@ -152,21 +150,21 @@
             v-model="guessText"
             type="text"
             class="pict-guess__input"
-            placeholder="Ton mot…"
+            :placeholder="$t('kiwi-games:pict_guess_placeholder')"
             maxlength="64"
             @keyup.enter="submitGuess"
           />
-          <button type="button" class="pict-guess__btn" @click="submitGuess">Envoyer</button>
-          <p v-if="game.getLastGuessWrong()" class="pict-guess__hint">Ce n'est pas ça — réessaie.</p>
+          <button type="button" class="pict-guess__btn" @click="submitGuess">{{ $t('kiwi-games:pict_send') }}</button>
+          <p v-if="game.getLastGuessWrong()" class="pict-guess__hint">{{ $t('kiwi-games:pict_wrong_guess') }}</p>
         </div>
 
         <div v-if="game.getGameOver() && scoreRows.length" class="pict-scoreboard">
-          <p class="pict-scoreboard__title">Scores finaux (mots trouvés)</p>
+          <p class="pict-scoreboard__title">{{ $t('kiwi-games:pict_final_scores') }}</p>
           <table class="pict-scoreboard__table">
             <thead>
               <tr>
-                <th>Joueur</th>
-                <th>Score</th>
+                <th>{{ $t('kiwi-games:pict_player') }}</th>
+                <th>{{ $t('kiwi-games:pict_score') }}</th>
               </tr>
             </thead>
             <tbody>
@@ -649,7 +647,7 @@ export default {
       game.setInviteSent(false);
       kiwi.state.addMessage(buffer, {
         nick: '*',
-        message: 'La partie commence — dessinateur : ' + drawer + '.',
+        message: kiwi.i18n.t('kiwi-games:pict_game_start', { drawer }),
         type: 'message',
       });
       Utils.sendData(network, buffer.name, payload);
@@ -669,7 +667,7 @@ export default {
       if (game.getShowGame() && !game.getGameOver()) {
         kiwi.state.addMessage(buffer, {
           nick: '*',
-          message: 'Nouveau tour — dessinateur : ' + game.getDrawer() + '.',
+          message: kiwi.i18n.t('kiwi-games:pict_next_turn_msg', { drawer: game.getDrawer() }),
           type: 'message',
         });
       }

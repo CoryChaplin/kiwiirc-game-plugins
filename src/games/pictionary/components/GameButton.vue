@@ -2,7 +2,7 @@
   <div id="pictionary" class="pict-header-btn-wrap" v-if="showButton">
     <button type="button" class="pict-header-btn" @click="buttonClicked">
       <span class="pict-header-btn__icon" aria-hidden="true">🖌</span>
-      Pictionary
+      {{ $t('kiwi-games:pict_title') }}
     </button>
   </div>
 </template>
@@ -100,7 +100,7 @@ export default {
       if (!invitees.length) {
         kiwi.state.addMessage(buffer, {
           nick: '*',
-          message: 'Aucun autre membre détecté dans ce salon pour relancer une partie.',
+          message: kiwi.i18n.t('kiwi-games:pict_no_other_members'),
           type: 'message',
         });
         return;
@@ -129,7 +129,7 @@ export default {
       this.forceUpdateUI();
       kiwi.state.addMessage(buffer, {
         nick: '*',
-        message: `Relance Pictionary dans ${buffer.name} — invitations envoyées à ${invitees.join(', ')}.`,
+        message: kiwi.i18n.t('kiwi-games:pict_relaunch', { room: buffer.name, list: invitees.join(', ') }),
         type: 'message',
       });
       kiwi.emit('mediaviewer.show', { component: GameComponent });

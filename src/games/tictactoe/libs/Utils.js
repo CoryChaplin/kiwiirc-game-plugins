@@ -1,5 +1,6 @@
 import TicTacToe from './TicTacToe.js';
 import { incrementUnread as _incrementUnread, sendData as _sendData } from '../../shared/Utils.js';
+import { t } from '../../shared/locales.js';
 
 const TAG = '+kiwiirc.com/ttt';
 
@@ -46,7 +47,7 @@ export function terminateGame(game) {
         if (buffer) {
             kiwi.state.addMessage(buffer, {
                 nick: '*',
-                message: 'You ended the game of Tic-Tac-Toe!',
+                message: t('ttt_you_ended'),
                 type: 'message',
             });
         }

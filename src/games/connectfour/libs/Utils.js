@@ -1,5 +1,6 @@
 import ConnectFour from './ConnectFour.js';
 import { incrementUnread as _incrementUnread, sendData as _sendData } from '../../shared/Utils.js';
+import { t } from '../../shared/locales.js';
 
 const TAG = '+kiwiirc.com/c4';
 
@@ -46,7 +47,7 @@ export function terminateGame(game) {
         if (buffer) {
             kiwi.state.addMessage(buffer, {
                 nick: '*',
-                message: 'You ended the game of Connect Four!',
+                message: t('c4_you_ended'),
                 type: 'message',
             });
         }

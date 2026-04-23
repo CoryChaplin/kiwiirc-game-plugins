@@ -6,13 +6,13 @@
             class="cf-invite"
             :class="{ 'cf-invite--stacked': game.getShowGame() }"
         >
-            <span class="cf-invite__text">You have been invited to play Connect Four</span>
+            <span class="cf-invite__text">{{ $t('kiwi-games:c4_invite_text') }}</span>
             <div class="cf-invite__actions">
                 <button class="u-button u-button-primary cf-invite__btn" @click="inviteClicked(true)">
-                    Accept
+                    {{ $t('kiwi-games:common_accept') }}
                 </button>
                 <button class="cf-invite__btn cf-invite__btn--decline" @click="inviteClicked(false)">
-                    Decline
+                    {{ $t('kiwi-games:common_decline') }}
                 </button>
             </div>
         </div>

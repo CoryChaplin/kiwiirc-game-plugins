@@ -1,5 +1,6 @@
 import Pictionary from './Pictionary.js';
 import { incrementUnread as _incrementUnread, sendData as _sendData } from '../../shared/Utils.js';
+import { t } from '../../shared/locales.js';
 
 const TAG = '+kiwiirc.com/pictionary';
 
@@ -62,14 +63,14 @@ export function terminateGame(game) {
   } else if (game.getShowInvite()) {
     sendData(network, tagTarget, { cmd: 'invite_declined' });
   } else if (!game.getGameOver()) {
-    game.setGameOver('Partie interrompue par toi.');
+    game.setGameOver(t('pict_you_interrupted'));
     if (network) {
       sendData(network, tagTarget, { cmd: 'terminate' });
     }
     if (buffer) {
       kiwi.state.addMessage(buffer, {
         nick: '*',
-        message: 'Tu as quitté la partie de Pictionary.',
+        message: t('pict_you_ended'),
         type: 'message',
       });
     }

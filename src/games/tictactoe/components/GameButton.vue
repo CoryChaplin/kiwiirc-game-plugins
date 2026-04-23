@@ -1,6 +1,6 @@
 <template>
     <div><div v-if="showButton" @click="buttonClicked">
-        <a>Play Tic Tac Toe</a>
+        <a>{{ $t('kiwi-games:ttt_play_button') }}</a>
     </div></div>
 </template>
 
@@ -80,8 +80,7 @@ export default {
                     // eslint-disable-next-line no-undef
                     kiwi.state.addMessage(buffer, {
                         nick: '*',
-                        message: 'The invite to ' + buffer.name +
-                            ' has timed out :( maybe they don\'t have the Tic-Tac-Toe plugin?',
+                        message: kiwi.i18n.t('kiwi-games:ttt_invite_timeout', { nick: buffer.name }),
                         type: 'message',
                     });
                 }, 4000));
@@ -91,7 +90,7 @@ export default {
             // eslint-disable-next-line no-undef
             kiwi.state.addMessage(buffer, {
                 nick: '*',
-                message: buffer.name + ' has been invited to play Tic-Tac-Toe!',
+                message: kiwi.i18n.t('kiwi-games:ttt_invite_sent', { nick: buffer.name }),
                 type: 'message',
             });
         },

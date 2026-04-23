@@ -1,6 +1,7 @@
 import * as Utils from './libs/Utils.js';
 import GameButton from './components/GameButton.vue';
 import GameComponent from './components/GameComponent.vue';
+import { t } from '../shared/locales.js';
 
 function echoDrawCmd(cmd) {
   return cmd === 'stroke' || cmd === 'fill' || cmd === 'clear' || cmd === 'undo';
@@ -100,7 +101,7 @@ function handlePictionaryChannelParticipantGone(kiwi, network, game, gameKey, ni
     if (targetBuffer) {
       kiwi.state.addMessage(targetBuffer, {
         nick: '*',
-        message: "L'hôte a quitté — partie Pictionary annulée.",
+        message: t('pict_host_left'),
         type: 'message',
       });
     }
@@ -118,14 +119,14 @@ function handlePictionaryChannelParticipantGone(kiwi, network, game, gameKey, ni
     } else if (outcome === 'new_drawer' && targetBuffer) {
       kiwi.state.addMessage(targetBuffer, {
         nick: '*',
-        message: `${nick} ${leftVerb} — ${game.getDrawer()} reprend le dessin.`,
+        message: t('pict_drawer_left', { nick, verb: leftVerb, drawer: game.getDrawer() }),
         type: 'message',
       });
       kiwi.emit('plugin-pictionary.redraw-canvas');
     } else if (outcome === 'continue' && targetBuffer && removed.wasParticipant) {
       kiwi.state.addMessage(targetBuffer, {
         nick: '*',
-        message: `${nick} ${leftVerb} — la partie continue.`,
+        message: t('pict_participant_left', { nick, verb: leftVerb }),
         type: 'message',
       });
     }
@@ -135,7 +136,7 @@ function handlePictionaryChannelParticipantGone(kiwi, network, game, gameKey, ni
   if (game.getShowLobby() && targetBuffer && removed.wasParticipant) {
     kiwi.state.addMessage(targetBuffer, {
       nick: '*',
-      message: `${nick} ${leftVerb}.`,
+      message: t('pict_nick_left', { nick, verb: leftVerb }),
       type: 'message',
     });
   }
@@ -190,7 +191,7 @@ export function init(kiwi, config) {
         kiwi.emit('plugin-pictionary.update-button');
         kiwi.state.addMessage(buffer, {
           nick: '*',
-          message: 'Tu es invité·e à jouer au Pictionary !',
+          message: t('pict_invite_received'),
           type: 'message',
         });
         Utils.sendData(network, event.nick, { cmd: 'invite_received' });
@@ -214,7 +215,7 @@ export function init(kiwi, config) {
         if (!game) break;
         kiwi.state.addMessage(buffer, {
           nick: '*',
-          message: event.nick + " a accepté — c'est parti pour le Pictionary !",
+          message: t('pict_invite_accepted', { nick: event.nick }),
           type: 'message',
         });
         game.startGame(data.drawer);
@@ -230,7 +231,7 @@ export function init(kiwi, config) {
         if (!game) break;
         kiwi.state.addMessage(buffer, {
           nick: '*',
-          message: event.nick + " a refusé l'invitation au Pictionary.",
+          message: t('pict_invite_declined', { nick: event.nick }),
           type: 'message',
         });
         game.setInviteSent(false);
@@ -257,12 +258,12 @@ export function init(kiwi, config) {
         }
         kiwi.state.addMessage(pmBuffer, {
           nick: '*',
-          message: `${data.host} t'invite dans ${roomName} pour une partie de Pictionary.`,
+          message: t('pict_room_invite_pm', { host: data.host, room: roomName }),
           type: 'message',
         });
         kiwi.state.addMessage(roomBuffer, {
           nick: '*',
-          message: `Invitation reçue pour ${roomName}. Choisis Accepter ou Refuser dans le panneau Pictionary.`,
+          message: t('pict_room_invite_panel', { room: roomName }),
           type: 'message',
         });
         activateBuffer(kiwi, roomBuffer);
@@ -288,9 +289,7 @@ export function init(kiwi, config) {
         }
         kiwi.state.addMessage(buffer, {
           nick: '*',
-          message:
-            data.host +
-            ' propose une partie de Pictionary dans ce salon — ouvre le panneau pour rejoindre.',
+          message: t('pict_channel_lobby', { host: data.host }),
           type: 'message',
         });
         kiwi.emit('plugin-pictionary.update-button');
@@ -398,9 +397,9 @@ export function init(kiwi, config) {
           });
         }
         if (data.gameOver) {
-          roomGame.setGameOver(data.gameMessage || 'Partie terminée.');
+          roomGame.setGameOver(data.gameMessage || t('pict_game_over'));
         } else if (data.turnSolved) {
-          roomGame.markTurnSolved(data.gameMessage || 'Mot trouvé !');
+          roomGame.markTurnSolved(data.gameMessage || t('pict_word_found_msg'));
         } else {
           roomGame.setTurnMessage();
         }
@@ -416,7 +415,7 @@ export function init(kiwi, config) {
           Utils.removeGame(gameKey);
           kiwi.state.addMessage(buffer, {
             nick: '*',
-            message: 'La partie Pictionary dans ce salon est annulée.',
+            message: t('pict_lobby_cancelled'),
             type: 'message',
           });
           kiwi.emit('plugin-pictionary.update-button');
@@ -450,7 +449,7 @@ export function init(kiwi, config) {
         game.setInviteSent(false);
         kiwi.state.addMessage(buffer, {
           nick: '*',
-          message: 'La partie commence — dessinateur : ' + data.drawer + '.',
+          message: t('pict_game_start', { drawer: data.drawer }),
           type: 'message',
         });
         const active = kiwi.state.getActiveBuffer();
@@ -525,10 +524,10 @@ export function init(kiwi, config) {
         if (ok) {
           const who = event.nick;
           const word = game.getWord();
-          const msg = who + ' a trouvé : « ' + word + ' » !';
+          const msg = t('pict_found_shout', { nick: who, word });
           game.addPointForNick(who);
           game.setLastGuessWrong(false);
-          game.markTurnSolved('Bravo ! ' + who + ' a trouvé : « ' + word + ' ».');
+          game.markTurnSolved(t('pict_correct_celebrate', { nick: who, word }));
           kiwi.state.addMessage(buffer, {
             nick: '*',
             message: msg,
@@ -551,8 +550,8 @@ export function init(kiwi, config) {
             game.addPointForNick(data.guesser);
           }
           game.setLastGuessWrong(false);
-          const who = data.guesser || 'Un joueur';
-          game.markTurnSolved('Bravo ! ' + who + ' a trouvé : « ' + (data.word || '') + ' ».');
+          const who = data.guesser || t('pict_anonymous_player');
+          game.markTurnSolved(t('pict_correct_celebrate', { nick: who, word: data.word || '' }));
         } else {
           if (!game.isGuesser()) break;
           if (game.isChannelGame()) {
@@ -585,7 +584,7 @@ export function init(kiwi, config) {
         if (game.getShowGame() && !game.getGameOver()) {
           kiwi.state.addMessage(buffer, {
             nick: '*',
-            message: 'Nouveau tour — dessinateur : ' + game.getDrawer() + '.',
+            message: t('pict_next_turn_msg', { drawer: game.getDrawer() }),
             type: 'message',
           });
         }
@@ -595,17 +594,17 @@ export function init(kiwi, config) {
       }
       case 'error': {
         if (game) {
-          game.setGameOver(data.message || 'Erreur.');
+          game.setGameOver(data.message || t('pict_error_default'));
           kiwi.emit('plugin-pictionary.update-button');
         }
         break;
       }
       case 'terminate': {
         if (game) {
-          game.setGameOver('Partie terminée par ' + event.nick + '.');
+          game.setGameOver(t('pict_ended_by', { nick: event.nick }));
           kiwi.state.addMessage(buffer, {
             nick: '*',
-            message: event.nick + ' a mis fin au Pictionary.',
+            message: t('pict_remote_ended', { nick: event.nick }),
             type: 'message',
           });
           kiwi.emit('plugin-pictionary.update-button');
@@ -678,7 +677,7 @@ export function init(kiwi, config) {
       if (activeBuffer) {
         kiwi.state.addMessage(activeBuffer, {
           nick: '*',
-          message: 'Usage: /pictionary pseudo1 pseudo2 pseudo3',
+          message: t('pict_usage'),
           type: 'message',
         });
       }
@@ -722,7 +721,7 @@ export function init(kiwi, config) {
 
     kiwi.state.addMessage(roomBuffer, {
       nick: '*',
-      message: `Salon Pictionary créé : ${roomName}. Invitations envoyées à ${uniquePlayers.join(', ')}.`,
+      message: t('pict_room_created', { room: roomName, list: uniquePlayers.join(', ') }),
       type: 'message',
     });
     activateBuffer(kiwi, roomBuffer);
@@ -756,7 +755,7 @@ export function init(kiwi, config) {
       if (!game) return;
 
       if (game.isChannelGame()) {
-        handlePictionaryChannelParticipantGone(kiwi, network, game, key, event.nick, "a quitté l'IRC");
+        handlePictionaryChannelParticipantGone(kiwi, network, game, key, event.nick, t('pict_left_irc'));
         return;
       }
 
@@ -776,7 +775,7 @@ export function init(kiwi, config) {
       const game = Utils.getGame(key);
       if (!game || !game.isChannelGame()) return;
       if (!channelNamesMatch(game.getTagTarget(), channel)) return;
-      handlePictionaryChannelParticipantGone(kiwi, network, game, key, nick, 'a quitté le salon');
+      handlePictionaryChannelParticipantGone(kiwi, network, game, key, nick, t('pict_left_channel'));
     });
   });
 

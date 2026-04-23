@@ -1,6 +1,6 @@
 <template>
     <div><div v-if="showButton">
-        <a title="Jeux" class="games-dropdown-button" @click="toggleDropdown">🎮</a>
+        <a :title="$t('kiwi-games:dropdown_title')" class="games-dropdown-button" @click="toggleDropdown">🎮</a>
         <ul
             v-if="open"
             class="games-dropdown-menu"
@@ -37,9 +37,9 @@ const c4Svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">'
     + '</svg>';
 
 const GAME_DEFS = [
-    { id: 'connectfour', label: 'Puissance 4', icon: c4Svg },
-    { id: 'tictactoe',   label: 'Morpion',     icon: tttSvg },
-    { id: 'pictionary',  label: 'Pictionary',   icon: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor"><path d="M5.6 11.6l-1.2-1.2c-0.8-0.2-2-0.1-2.7 1-0.8 1.1-0.3 2.8-1.7 4.6 0 0 3.5 0 4.8-1.3 1.2-1.2 1.2-2.2 1-3l-0.2-0.1z"/><path d="M5.8 8.1c-0.2 0.3-0.5 0.7-0.7 1 0 0.2-0.1 0.3-0.2 0.4l1.5 1.5c0.1-0.1 0.3-0.2 0.4-0.3 0.3-0.2 0.7-0.4 1-0.7 0.4 0 0.6-0.2 0.8-0.4l-2.2-2.2c-0.2 0.2-0.4 0.4-0.6 0.7z"/><path d="M15.8 0.2c-0.3-0.3-0.7-0.3-1-0.1 0 0-3 2.5-5.9 5.1-0.4 0.4-0.7 0.7-1.1 1-0.2 0.2-0.4 0.4-0.6 0.5l2.1 2.1c0.2-0.2 0.4-0.4 0.5-0.7 0.3-0.4 0.6-0.7 0.9-1.1 2.5-3 5.1-5.9 5.1-5.9 0.3-0.2 0.3-0.6 0-0.9z"/></svg>' },
+    { id: 'connectfour', labelKey: 'dropdown_connectfour', icon: c4Svg },
+    { id: 'tictactoe',   labelKey: 'dropdown_tictactoe',   icon: tttSvg },
+    { id: 'pictionary',  labelKey: 'dropdown_pictionary',   icon: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor"><path d="M5.6 11.6l-1.2-1.2c-0.8-0.2-2-0.1-2.7 1-0.8 1.1-0.3 2.8-1.7 4.6 0 0 3.5 0 4.8-1.3 1.2-1.2 1.2-2.2 1-3l-0.2-0.1z"/><path d="M5.8 8.1c-0.2 0.3-0.5 0.7-0.7 1 0 0.2-0.1 0.3-0.2 0.4l1.5 1.5c0.1-0.1 0.3-0.2 0.4-0.3 0.3-0.2 0.7-0.4 1-0.7 0.4 0 0.6-0.2 0.8-0.4l-2.2-2.2c-0.2 0.2-0.4 0.4-0.6 0.7z"/><path d="M15.8 0.2c-0.3-0.3-0.7-0.3-1-0.1 0 0-3 2.5-5.9 5.1-0.4 0.4-0.7 0.7-1.1 1-0.2 0.2-0.4 0.4-0.6 0.5l2.1 2.1c0.2-0.2 0.4-0.4 0.5-0.7 0.3-0.4 0.6-0.7 0.9-1.1 2.5-3 5.1-5.9 5.1-5.9 0.3-0.2 0.3-0.6 0-0.9z"/></svg>' },
 ];
 
 export default {
@@ -62,10 +62,16 @@ export default {
         },
         enabledGames() {
             const settings = (kiwi.state.settings && kiwi.state.settings['plugin_kiwi_games']) || {};
-            return GAME_DEFS.filter(({ id }) => {
-                const cfg = settings[id] || {};
-                return cfg.enabled !== false && cfg.button !== false;
-            });
+            return GAME_DEFS
+                .filter(({ id }) => {
+                    const cfg = settings[id] || {};
+                    return cfg.enabled !== false && cfg.button !== false;
+                })
+                .map(({ id, labelKey, icon }) => ({
+                    id,
+                    icon,
+                    label: this.$t('kiwi-games:' + labelKey),
+                }));
         },
     },
     mounted() {

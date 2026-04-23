@@ -5,12 +5,12 @@
             :style="{'margin-bottom': (game.getShowGame()? '6px' : '0')}"
             class="invite"
         >
-            <span class="invite_text">You have been invited to play Tic-Tac-Toe</span>
+            <span class="invite_text">{{ $t('kiwi-games:ttt_invite_text') }}</span>
             <div class="invite_button invite_button_accept" @click="inviteClicked(true)">
-                Accept
+                {{ $t('kiwi-games:common_accept') }}
             </div>
             <div class="invite_button invite_button_decline" @click="inviteClicked(false)">
-                Decline
+                {{ $t('kiwi-games:common_decline') }}
             </div>
         </div>
         <div v-if="game.getShowGame()">

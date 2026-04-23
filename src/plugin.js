@@ -2,6 +2,7 @@ import { init as initTictactoe } from './games/tictactoe/index.js';
 import { init as initConnectFour } from './games/connectfour/index.js';
 import { init as initPictionary } from './games/pictionary/index.js';
 import GamesDropdown from './games/shared/components/GamesDropdown.vue';
+import Locales, { getPluginBasePath } from './games/shared/locales.js';
 
 /**
  * Plugin Kiwi IRC unifié regroupant tous les jeux.
@@ -23,6 +24,10 @@ import GamesDropdown from './games/shared/components/GamesDropdown.vue';
 // eslint-disable-next-line no-undef
 kiwi.plugin('kiwi-games', function(kiwi) {
     const settings = (kiwi.state.settings && kiwi.state.settings['plugin_kiwi_games']) || {};
+
+    const defaultLocalesPath = getPluginBasePath() + 'kiwi-games/locales';
+    const localesPath = settings.localesPath || defaultLocalesPath;
+    new Locales().init(localesPath, 'kiwi-games', 'ttt_title');
 
     const defaults = {
         tictactoe:   { enabled: true, button: true, command: true },

@@ -1,15 +1,8 @@
 import * as Utils from './libs/Utils.js';
 import GameButton from './components/GameButton.vue';
 import GameComponent from './components/GameComponent.vue';
+import { t } from '../shared/locales.js';
 
-/**
- * Initialise le plugin Tic-Tac-Toe dans le contexte Kiwi fourni.
- *
- * @param {object} kiwi   - L'instance Kiwi IRC passée par le plugin parent.
- * @param {object} config - Configuration du jeu.
- * @param {boolean} [config.button=true]  - Afficher le bouton dans le header.
- * @param {boolean} [config.command=false] - Enregistrer la commande /tictactoe <nick>.
- */
 export function init(kiwi, config) {
     const cfg = { button: true, command: false, ...config };
     let mediaViewerOpen = false;
@@ -17,11 +10,11 @@ export function init(kiwi, config) {
     function inviteToTictactoe(network, targetNick, errorBuffer) {
         const nick = (targetNick || '').trim();
         if (!nick) {
-            kiwi.state.addMessage(errorBuffer, { nick: '*', message: 'Usage: /tictactoe <nick>', type: 'error' });
+            kiwi.state.addMessage(errorBuffer, { nick: '*', message: t('ttt_usage'), type: 'error' });
             return;
         }
         if (nick === network.nick) {
-            kiwi.state.addMessage(errorBuffer, { nick: '*', message: 'You cannot invite yourself to play Tic-Tac-Toe.', type: 'error' });
+            kiwi.state.addMessage(errorBuffer, { nick: '*', message: t('ttt_cannot_invite_self'), type: 'error' });
             return;
         }
         const buffer = kiwi.state.getOrAddBufferByName(network.id, nick);
@@ -30,7 +23,7 @@ export function init(kiwi, config) {
         }
         const game = Utils.getGame(nick);
         if ((game.getShowGame() && !game.getGameOver()) || game.getInviteSent()) {
-            kiwi.state.addMessage(errorBuffer, { nick: '*', message: 'A game or invite is already active with ' + nick + '.', type: 'error' });
+            kiwi.state.addMessage(errorBuffer, { nick: '*', message: t('ttt_already_active', { nick }), type: 'error' });
             return;
         }
         const feedbackBuffer = errorBuffer || buffer;
@@ -39,12 +32,12 @@ export function init(kiwi, config) {
             game.setInviteTimeout(window.setTimeout(() => {
                 game.setInviteTimeout(null);
                 game.setInviteSent(false);
-                kiwi.state.addMessage(feedbackBuffer, { nick: '*', message: 'The invite to ' + nick + ' timed out — maybe they don\'t have the Tic-Tac-Toe plugin?', type: 'message' });
+                kiwi.state.addMessage(feedbackBuffer, { nick: '*', message: t('ttt_invite_timeout', { nick }), type: 'message' });
             }, 4000));
         }
         Utils.sendData(network, nick, { cmd: 'invite' });
         kiwi.emit('plugin-kiwi-games.game-proposed', { game: 'tictactoe' });
-        kiwi.state.addMessage(feedbackBuffer, { nick: '*', message: nick + ' has been invited to play Tic-Tac-Toe!', type: 'message' });
+        kiwi.state.addMessage(feedbackBuffer, { nick: '*', message: t('ttt_invite_sent', { nick }), type: 'message' });
     }
 
     if (cfg.command) {
@@ -79,7 +72,7 @@ export function init(kiwi, config) {
             kiwi.emit('plugin-tictactoe.update-button');
             kiwi.state.addMessage(buffer, {
                 nick: '*',
-                message: 'You have been invited to play Tic-Tac-Toe!',
+                message: t('ttt_invite_received'),
                 type: 'message',
             });
             Utils.sendData(network, event.nick, { cmd: 'invite_received' });
@@ -99,7 +92,7 @@ export function init(kiwi, config) {
         case 'invite_accepted': {
             kiwi.state.addMessage(buffer, {
                 nick: '*',
-                message: event.nick + ' accepted your invite to play Tic-Tac-Toe!',
+                message: t('ttt_invite_accepted', { nick: event.nick }),
                 type: 'message',
             });
             game.startGame(data.startPlayer);
@@ -114,7 +107,7 @@ export function init(kiwi, config) {
         case 'invite_declined': {
             kiwi.state.addMessage(buffer, {
                 nick: '*',
-                message: event.nick + ' declined your invite to play Tic-Tac-Toe!',
+                message: t('ttt_invite_declined', { nick: event.nick }),
                 type: 'message',
             });
             game.setInviteSent(false);
@@ -125,7 +118,7 @@ export function init(kiwi, config) {
                 game.getGameBoard()[data.clicked[0]][data.clicked[1]].val = game.getMarker();
                 if (game.getGameTurn() !== data.turn) {
                     game.setGameOver(true);
-                    let message = 'Error: Game turn out of sync :(';
+                    let message = t('common_turn_out_of_sync');
                     game.setGameMessage(message);
                     Utils.sendData(network, game.getRemotePlayer(), { cmd: 'error', message: message });
                 } else {
@@ -150,10 +143,10 @@ export function init(kiwi, config) {
         }
         case 'terminate': {
             game.setGameOver(true);
-            game.setGameMessage('Game ended by ' + event.nick);
+            game.setGameMessage(t('ttt_ended_by', { nick: event.nick }));
             kiwi.state.addMessage(buffer, {
                 nick: '*',
-                message: event.nick + ' ended the game of Tic-Tac-Toe!',
+                message: t('ttt_remote_ended', { nick: event.nick }),
                 type: 'message',
             });
             break;

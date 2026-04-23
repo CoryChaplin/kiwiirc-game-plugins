@@ -1,3 +1,5 @@
+import { t } from '../../shared/locales.js';
+
 const winBoard = [
     [[0, 0], [0, 1], [0, 2]],
     [[1, 0], [1, 1], [1, 2]],
@@ -73,20 +75,20 @@ export default class TicTacToe {
 
         winboardValues.forEach((x, ind) => {
             if (x.every((y) => y === 'X')) {
-                this.data.gameMessage = 'Winner: X';
+                this.data.gameMessage = t('ttt_winner_x');
                 vector = winBoard[ind];
                 this.data.gameOver = true;
             }
 
             if (x.every((y) => y === 'O')) {
-                this.data.gameMessage = 'Winner: O';
+                this.data.gameMessage = t('ttt_winner_o');
                 vector = winBoard[ind];
                 this.data.gameOver = true;
             }
         });
 
         if (!this.data.gameOver && isDraw) {
-            this.data.gameMessage = 'Winner: Draw';
+            this.data.gameMessage = t('ttt_winner_draw');
             this.data.gameDraw = true;
             this.data.gameOver = true;
         }
@@ -198,7 +200,9 @@ export default class TicTacToe {
     }
 
     setTurnMessage() {
-        this.data.gameMessage = this.isMyTurn() ? 'Your Turn!' : 'Waiting for ' + this.data.remotePlayer;
+        this.data.gameMessage = this.isMyTurn()
+            ? t('ttt_your_turn')
+            : t('ttt_waiting', { nick: this.data.remotePlayer });
     }
 
     getBoardValues() {
