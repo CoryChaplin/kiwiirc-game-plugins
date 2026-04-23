@@ -221,6 +221,7 @@ export function init(kiwi, config) {
 
     kiwi.state.$watch('ui.active_buffer', () => {
         let buffer = kiwi.state.getActiveBuffer();
+        if (!buffer) return;
         let game = Utils.getGame(buffer.name);
         if (game && (game.getShowGame() || game.getShowInvite()) && !mediaViewerOpen) {
             kiwi.emit('mediaviewer.show', { component: GameComponent });
