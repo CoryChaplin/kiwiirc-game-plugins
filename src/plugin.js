@@ -21,11 +21,16 @@ import Locales, { getPluginBasePath } from './games/shared/locales.js';
  *   - command (bool) : enregistre une commande IRC /tictactoe|connectfour|pictionary <nick>
  */
 
+// IMPORTANT : résolu à l'évaluation du module (au moment où le script
+// plugin-kiwi-games.js est parsé), pas dans le callback kiwi.plugin(),
+// pour que `scripts[last]` pointe bien sur notre plugin et non sur un
+// plugin chargé plus tard.
+const defaultLocalesPath = getPluginBasePath() + 'kiwi-games/locales';
+
 // eslint-disable-next-line no-undef
 kiwi.plugin('kiwi-games', function(kiwi) {
     const settings = (kiwi.state.settings && kiwi.state.settings['plugin_kiwi_games']) || {};
 
-    const defaultLocalesPath = getPluginBasePath() + 'kiwi-games/locales';
     const localesPath = settings.localesPath || defaultLocalesPath;
     new Locales().init(localesPath, 'kiwi-games', 'ttt_title');
 
