@@ -220,7 +220,6 @@ export function init(kiwi, config) {
         });
         game.startGame(data.drawer);
         game.setInviteSent(false);
-        kiwi.emit('plugin-kiwi-games.game-started', { game: 'pictionary' });
         const active = kiwi.state.getActiveBuffer();
         if (!mediaViewerOpen && active && active.name === game.getTagTarget()) {
           kiwi.emit('mediaviewer.show', { component: GameComponent });
@@ -447,6 +446,7 @@ export function init(kiwi, config) {
           Array.isArray(data.wordsUsedThisGame) ? data.wordsUsedThisGame : undefined,
         );
         game.setInviteSent(false);
+        kiwi.emit('plugin-kiwi-games.game-started', { game: 'pictionary' });
         kiwi.state.addMessage(buffer, {
           nick: '*',
           message: t('pict_game_start', { drawer: data.drawer }),
