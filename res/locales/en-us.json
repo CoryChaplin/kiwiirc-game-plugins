@@ -64,6 +64,7 @@
     "pict_lobby_join": "Join",
     "pict_lobby_start": "Start game",
     "pict_lobby_hint": "At least 2 players must have joined. The drawer will be chosen at random.",
+    "pict_too_many_players": "Maximum {{max}} players per Pictionary game (host included).",
     "pict_game_start": "Game starting — drawer: {{drawer}}.",
     "pict_next_turn_msg": "New turn — drawer: {{drawer}}.",
     "pict_remote_ended": "{{nick}} ended the Pictionary game.",
@@ -115,5 +116,12 @@
     "pict_wrong_guess": "That’s not it — try again.",
     "pict_final_scores": "Final scores (words found)",
     "pict_player": "Player",
-    "pict_score": "Score"
+    "pict_score": "Score",
+    "pict_feedback_title": "Your feedback about this match",
+    "pict_feedback_hint": "Help us improve the experience with a rating and a comment.",
+    "pict_feedback_rating": "Rating (1-5)",
+    "pict_feedback_text": "Comment",
+    "pict_feedback_placeholder": "Tell us what was good or what to improve...",
+    "pict_feedback_send": "Send feedback",
+    "pict_feedback_sent": "Thanks, your feedback was sent."
 }

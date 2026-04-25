@@ -1,6 +1,6 @@
 import * as Utils from './libs/Utils.js';
-import GameButton from './components/GameButton.vue';
 import GameComponent from './components/GameComponent.vue';
+import Pictionary from './libs/Pictionary.js';
 import { t } from '../shared/locales.js';
 
 function echoDrawCmd(cmd) {
@@ -240,7 +240,6 @@ export function init(kiwi, config) {
         if (!data.room || !data.host) break;
         const roomName = String(data.room);
         const pmBuffer = kiwi.state.getOrAddBufferByName(network.id, event.nick);
-        const roomBuffer = kiwi.state.getOrAddBufferByName(network.id, roomName);
         const roomKey = Utils.gameKey(network.id, roomName);
         let roomGame = Utils.getGame(roomKey);
         if (!roomGame) {
@@ -260,14 +259,7 @@ export function init(kiwi, config) {
           message: t('pict_room_invite_pm', { host: data.host, room: roomName }),
           type: 'message',
         });
-        kiwi.state.addMessage(roomBuffer, {
-          nick: '*',
-          message: t('pict_room_invite_panel', { room: roomName }),
-          type: 'message',
-        });
-        activateBuffer(kiwi, roomBuffer);
         kiwi.emit('plugin-pictionary.update-button');
-        kiwi.emit('mediaviewer.show', { component: GameComponent });
         break;
       }
       case 'channel_lobby': {
@@ -685,6 +677,18 @@ export function init(kiwi, config) {
     }
 
     const uniquePlayers = Array.from(new Set(players));
+    const maxRemoteInvites = Pictionary.MAX_PLAYERS - 1;
+    if (uniquePlayers.length > maxRemoteInvites) {
+      const activeBuffer = kiwi.state.getActiveBuffer();
+      if (activeBuffer) {
+        kiwi.state.addMessage(activeBuffer, {
+          nick: '*',
+          message: t('pict_too_many_players', { max: Pictionary.MAX_PLAYERS }),
+          type: 'message',
+        });
+      }
+      return;
+    }
     const roomName = randomRoomName();
     joinChannel(network, roomName);
     setPictionaryRoomModes(network, roomName);

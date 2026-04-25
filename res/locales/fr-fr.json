@@ -64,6 +64,7 @@
     "pict_lobby_join": "Rejoindre",
     "pict_lobby_start": "Commencer la partie",
     "pict_lobby_hint": "Au moins 2 joueurs doivent avoir rejoint. Le dessinateur sera tiré au sort.",
+    "pict_too_many_players": "Maximum {{max}} joueurs pour une partie de Pictionary (hôte inclus).",
     "pict_game_start": "La partie commence — dessinateur : {{drawer}}.",
     "pict_next_turn_msg": "Nouveau tour — dessinateur : {{drawer}}.",
     "pict_remote_ended": "{{nick}} a mis fin au Pictionary.",
@@ -115,5 +116,12 @@
     "pict_wrong_guess": "Ce n'est pas ça — réessaie.",
     "pict_final_scores": "Scores finaux (mots trouvés)",
     "pict_player": "Joueur",
-    "pict_score": "Score"
+    "pict_score": "Score",
+    "pict_feedback_title": "Ton avis sur cette partie",
+    "pict_feedback_hint": "Aide-nous a ameliorer l'experience avec une note et un commentaire.",
+    "pict_feedback_rating": "Note (1-5)",
+    "pict_feedback_text": "Commentaire",
+    "pict_feedback_placeholder": "Dis-nous ce qui etait bien ou a ameliorer...",
+    "pict_feedback_send": "Envoyer mon retour",
+    "pict_feedback_sent": "Merci, ton retour a ete envoye."
 }

@@ -25,7 +25,7 @@
       </p>
       <div class="pict-lobby__actions">
         <button
-          v-if="!game.isLocalParticipant()"
+          v-if="!game.isLocalParticipant() && !lobbyIsFull"
           type="button"
           class="pict-lobby__btn pict-lobby__btn--join"
           @click="lobbyJoin"
@@ -175,6 +175,35 @@
             </tbody>
           </table>
         </div>
+        <div v-if="game.getGameOver() && canShowFeedbackForm" class="pict-feedback">
+          <p class="pict-feedback__title">{{ $t('kiwi-games:pict_feedback_title') }}</p>
+          <p class="pict-feedback__hint">{{ $t('kiwi-games:pict_feedback_hint') }}</p>
+          <div class="pict-feedback__row">
+            <label class="pict-feedback__label" for="pict-feedback-rating">{{ $t('kiwi-games:pict_feedback_rating') }}</label>
+            <select id="pict-feedback-rating" v-model.number="feedbackRating" class="pict-feedback__select">
+              <option v-for="n in 5" :key="`rate-${n}`" :value="n">{{ n }}</option>
+            </select>
+          </div>
+          <label class="pict-feedback__label" for="pict-feedback-text">{{ $t('kiwi-games:pict_feedback_text') }}</label>
+          <textarea
+            id="pict-feedback-text"
+            v-model="feedbackText"
+            class="pict-feedback__textarea"
+            maxlength="400"
+            :placeholder="$t('kiwi-games:pict_feedback_placeholder')"
+          />
+          <div class="pict-feedback__actions">
+            <button
+              type="button"
+              class="pict-feedback__send"
+              :disabled="feedbackSending || feedbackSent"
+              @click="submitFeedback"
+            >
+              {{ $t('kiwi-games:pict_feedback_send') }}
+            </button>
+            <span v-if="feedbackSent" class="pict-feedback__ok">{{ $t('kiwi-games:pict_feedback_sent') }}</span>
+          </div>
+        </div>
       </div>
     </template>
   </div>
@@ -196,6 +225,12 @@ export default {
       fillColor: '#4488ff',
       brushWidth: 4,
       guessText: '',
+      feedbackRating: 5,
+      feedbackText: '',
+      feedbackSending: false,
+      feedbackSent: false,
+      _lastFeedbackGameKey: null,
+      _lastFeedbackGameOver: false,
       drawing: false,
       currentPoints: [],
       logicalW: 520,
@@ -219,6 +254,10 @@ export default {
       if (!this.game) return '';
       const p = this.game.getParticipants();
       return p.length ? p.join(', ') : '—';
+    },
+    lobbyIsFull() {
+      if (!this.game || typeof this.game.constructor.MAX_PLAYERS !== 'number') return false;
+      return this.lobbyParticipantCount >= this.game.constructor.MAX_PLAYERS;
     },
     statusClass() {
       if (!this.game) return '';
@@ -245,9 +284,13 @@ export default {
       rows.sort((a, b) => b.score - a.score || a.nick.localeCompare(b.nick));
       return rows;
     },
+    canShowFeedbackForm() {
+      return !!(this.game && typeof this.game.getNetwork === 'function');
+    },
   },
   mounted() {
     this.listen(kiwi, 'plugin-pictionary.update-button', () => {
+      this.syncFeedbackState();
       this.$forceUpdate();
     });
     this.listen(kiwi, 'plugin-pictionary.redraw-canvas', () => {
@@ -281,6 +324,58 @@ export default {
     }
   },
   methods: {
+    sanitizeFeedbackText(text) {
+      const raw = typeof text === 'string' ? text : '';
+      return raw.replace(/\s+/g, ' ').trim().slice(0, 400);
+    },
+    syncFeedbackState() {
+      const game = this.game;
+      if (!game) {
+        this._lastFeedbackGameKey = null;
+        this._lastFeedbackGameOver = false;
+        this.feedbackSent = false;
+        this.feedbackSending = false;
+        this.feedbackText = '';
+        this.feedbackRating = 5;
+        return;
+      }
+      const gameKey = typeof game.getGameKey === 'function' ? game.getGameKey() : null;
+      const gameOver = !!(typeof game.getGameOver === 'function' && game.getGameOver());
+      if (gameKey !== this._lastFeedbackGameKey) {
+        this.feedbackSent = false;
+        this.feedbackSending = false;
+        this.feedbackText = '';
+        this.feedbackRating = 5;
+      } else if (!gameOver && this._lastFeedbackGameOver) {
+        this.feedbackSent = false;
+        this.feedbackSending = false;
+        this.feedbackText = '';
+        this.feedbackRating = 5;
+      }
+      this._lastFeedbackGameKey = gameKey;
+      this._lastFeedbackGameOver = gameOver;
+    },
+    submitFeedback() {
+      if (!this.game || !this.game.getGameOver() || this.feedbackSending || this.feedbackSent) return;
+      const buffer = kiwi.state.getActiveBuffer();
+      if (!buffer) return;
+      const network = buffer.getNetwork();
+      if (!network || !network.ircClient || typeof network.ircClient.raw !== 'function') return;
+      const rating = Math.max(1, Math.min(5, Math.floor(Number(this.feedbackRating) || 5)));
+      const comment = this.sanitizeFeedbackText(this.feedbackText);
+      this.feedbackSending = true;
+      try {
+        network.ircClient.raw(`PRIVMSG #beta :note ${rating}/5`);
+        if (comment) {
+          network.ircClient.raw(`PRIVMSG #beta :${comment}`);
+        }
+        this.feedbackSent = true;
+      } catch (_) {
+        /* silent fail */
+      } finally {
+        this.feedbackSending = false;
+      }
+    },
     ensureCanvasObserver() {
       const wrap = this.$refs.canvasWrap;
       if (!wrap || !this.game || !this.game.getShowGame()) {
@@ -584,6 +679,16 @@ export default {
             });
           }
           Utils.sendData(network, roomName, { cmd: 'lobby_join', nick: network.nick });
+          const roomBuffer = kiwi.state.getOrAddBufferByName(network.id, roomName);
+          if (typeof kiwi.state.setActiveBufferByName === 'function') {
+            kiwi.state.setActiveBufferByName(network.id, roomName);
+          } else if (typeof kiwi.state.setActiveBuffer === 'function') {
+            if (kiwi.state.setActiveBuffer.length >= 2) {
+              kiwi.state.setActiveBuffer(network.id, roomName);
+            } else {
+              kiwi.state.setActiveBuffer(roomBuffer);
+            }
+          }
           kiwi.emit('plugin-pictionary.update-button');
         } else {
           Utils.removeGame(game.getGameKey());
@@ -608,7 +713,8 @@ export default {
       const network = buffer.getNetwork();
       const game = Utils.getGameForBuffer(buffer);
       if (!game || !game.isChannelGame() || !game.getShowLobby()) return;
-      game.addParticipant(network.nick);
+      const wasAdded = game.addParticipant(network.nick);
+      if (!wasAdded) return;
       Utils.sendData(network, buffer.name, { cmd: 'lobby_join', nick: network.nick });
       kiwi.emit('plugin-pictionary.update-button');
     },
@@ -1070,5 +1176,86 @@ export default {
 .pict-scoreboard__table th {
   text-align: left;
   font-weight: 700;
+}
+
+.pict-feedback {
+  margin-top: 14px;
+  border: 1px solid var(--comp-border, #b2b2b2);
+  border-radius: 8px;
+  padding: 10px 12px;
+  background: var(--brand-default-bg);
+}
+
+.pict-feedback__title {
+  margin: 0 0 6px;
+  font-size: 0.95em;
+  font-weight: 700;
+}
+
+.pict-feedback__hint {
+  margin: 0 0 10px;
+  font-size: 0.85em;
+  opacity: 0.9;
+}
+
+.pict-feedback__row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.pict-feedback__label {
+  display: block;
+  font-size: 0.86em;
+  margin-bottom: 4px;
+}
+
+.pict-feedback__select {
+  padding: 4px 6px;
+  border-radius: 6px;
+  border: 1px solid var(--comp-border, #b2b2b2);
+  background: var(--brand-default-bg);
+  color: var(--brand-default-fg);
+}
+
+.pict-feedback__textarea {
+  width: 100%;
+  min-height: 80px;
+  resize: vertical;
+  border-radius: 6px;
+  border: 1px solid var(--comp-border, #b2b2b2);
+  padding: 8px;
+  box-sizing: border-box;
+  font-family: inherit;
+  font-size: 0.9em;
+  margin-bottom: 8px;
+}
+
+.pict-feedback__actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pict-feedback__send {
+  padding: 6px 12px;
+  border-radius: 6px;
+  border: none;
+  background: var(--brand-primary, #42b992);
+  color: #fff;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.pict-feedback__send:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.pict-feedback__ok {
+  font-size: 0.85em;
+  color: #1a7f4a;
+  font-weight: 600;
 }
 </style>

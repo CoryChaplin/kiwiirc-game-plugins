@@ -15,6 +15,21 @@ function listHasNormalizedWord(list, word) {
 
 export default class Pictionary {
   static TURNS_PER_PLAYER = 5;
+  static MAX_PLAYERS = 10;
+
+  static sanitizeParticipants(list) {
+    const unique = [];
+    const seen = new Set();
+    if (!Array.isArray(list)) return unique;
+    for (const rawNick of list) {
+      const nick = typeof rawNick === 'string' ? rawNick.trim() : '';
+      if (!nick || seen.has(nick)) continue;
+      seen.add(nick);
+      unique.push(nick);
+      if (unique.length >= Pictionary.MAX_PLAYERS) break;
+    }
+    return unique;
+  }
 
   constructor(network, localPlayer, tagTarget, isChannelGame, gameKey) {
     this._gameKey = gameKey;
@@ -66,7 +81,11 @@ export default class Pictionary {
   startGame(drawerNick, turnOrder, turnsPlayedByNick, scoresByNick, wordsUsedOverride) {
     const state = this.data;
     const resetWordHistory = !state.showGame || state.gameOver;
-    const providedOrder = Array.isArray(turnOrder) && turnOrder.length ? turnOrder.slice() : null;
+    state.participants = Pictionary.sanitizeParticipants(state.participants);
+    const providedOrderRaw = Array.isArray(turnOrder) && turnOrder.length ? turnOrder.slice() : null;
+    const providedOrder = providedOrderRaw
+      ? Pictionary.sanitizeParticipants(providedOrderRaw).filter((nick) => state.participants.indexOf(nick) !== -1)
+      : null;
     const order =
       providedOrder ||
       (state.turnOrder && state.turnOrder.length ? state.turnOrder.slice() : state.participants.slice());
@@ -183,8 +202,11 @@ export default class Pictionary {
   }
 
   addParticipant(nick) {
-    if (!nick || this.isParticipantNick(nick)) return;
+    if (!nick || this.isParticipantNick(nick) || this.data.participants.length >= Pictionary.MAX_PLAYERS) {
+      return false;
+    }
     this.data.participants.push(nick);
+    return true;
   }
 
   removeParticipant(nick) {
@@ -287,7 +309,7 @@ export default class Pictionary {
   }
 
   setParticipants(list) {
-    this.data.participants = Array.isArray(list) ? list.slice() : [];
+    this.data.participants = Pictionary.sanitizeParticipants(list);
   }
 
   getParticipants() {
