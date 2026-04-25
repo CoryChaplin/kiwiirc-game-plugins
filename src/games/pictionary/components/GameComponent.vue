@@ -50,113 +50,109 @@
       </div>
 
       <div class="pict-play">
-        <div v-if="game.isDrawer()" class="pict-word">
-          <template v-if="game.getGameOver() && game.getWord()">
-            {{ $t('kiwi-games:pict_word_is') }} <strong>{{ game.getWord() }}</strong>
-          </template>
-          <template v-else-if="game.hasPendingDrawerWordChoice()">
-            <p class="pict-word__pick-title">{{ $t('kiwi-games:pict_pick_word') }}</p>
-            <div class="pict-word__choices">
-              <button
-                v-for="(w, idx) in game.getWordChoices()"
-                :key="idx"
-                type="button"
-                class="pict-word__choice-btn"
-                @click="chooseDrawerWord(w)"
-              >
-                {{ w }}
-              </button>
-            </div>
-          </template>
-          <template v-else>
-            {{ $t('kiwi-games:pict_word_to_draw') }} <strong>{{ game.getWord() }}</strong>
-          </template>
-        </div>
-        <div v-else class="pict-word pict-word--hidden">
-          <template v-if="game.getGameOver() && game.getWord()">
-            {{ $t('kiwi-games:pict_word_was') }} <strong>{{ game.getWord() }}</strong>
-          </template>
-          <template v-else-if="game.getTurnSolved()">{{ $t('kiwi-games:pict_turn_done') }}</template>
-          <template v-else>{{ $t('kiwi-games:pict_guess_hint', { drawer: game.getDrawer() }) }}</template>
-        </div>
+        <template v-if="!game.getGameOver()">
+          <div v-if="game.isDrawer()" class="pict-word">
+            <template v-if="game.hasPendingDrawerWordChoice()">
+              <p class="pict-word__pick-title">{{ $t('kiwi-games:pict_pick_word') }}</p>
+              <div class="pict-word__choices">
+                <button
+                  v-for="(w, idx) in game.getWordChoices()"
+                  :key="idx"
+                  type="button"
+                  class="pict-word__choice-btn"
+                  @click="chooseDrawerWord(w)"
+                >
+                  {{ w }}
+                </button>
+              </div>
+            </template>
+            <template v-else>
+              {{ $t('kiwi-games:pict_word_to_draw') }} <strong>{{ game.getWord() }}</strong>
+            </template>
+          </div>
+          <div v-else class="pict-word pict-word--hidden">
+            <template v-if="game.getTurnSolved()">{{ $t('kiwi-games:pict_turn_done') }}</template>
+            <template v-else>{{ $t('kiwi-games:pict_guess_hint', { drawer: game.getDrawer() }) }}</template>
+          </div>
 
-        <div
-          ref="canvasWrap"
-          class="pict-canvas-wrap"
-          :class="{
-            'pict-canvas-wrap--frozen':
-              (game.getTurnSolved() && !game.getGameOver() && !game.isDrawer()) ||
-              game.hasPendingDrawerWordChoice(),
-          }"
-        >
-          <canvas
-            ref="canvas"
-            class="pict-canvas"
-            :class="canvasCursorClass"
-            @pointerdown.prevent="onPointerDown"
-            @pointermove.prevent="onPointerMove"
-            @pointerup.prevent="onPointerUp"
-            @pointercancel.prevent="onPointerUp"
-            @pointerleave="onPointerLeave"
-          />
-        </div>
-
-        <div
-          v-if="game.isDrawer() && !game.getGameOver() && !game.getTurnSolved() && !game.hasPendingDrawerWordChoice()"
-          class="pict-toolbar"
-        >
-          <label class="pict-toolbar__label">
-            <input v-model="fillMode" type="checkbox" />
-            {{ $t('kiwi-games:pict_bucket') }}
-          </label>
-          <label v-if="fillMode" class="pict-toolbar__label">
-            {{ $t('kiwi-games:pict_fill_color') }}
-            <input v-model="fillColor" type="color" class="pict-toolbar__color" />
-          </label>
-          <label class="pict-toolbar__label">
-            {{ $t('kiwi-games:pict_brush_color') }}
-            <input v-model="brushColor" type="color" class="pict-toolbar__color" />
-          </label>
-          <label class="pict-toolbar__label">
-            {{ $t('kiwi-games:pict_brush_width') }}
-            <input v-model.number="brushWidth" type="range" min="1" max="12" />
-          </label>
-          <button
-            type="button"
-            class="pict-toolbar__undo"
-            :disabled="undoDisabled"
-            :title="$t('kiwi-games:pict_undo_title')"
-            @click="undoLastStroke"
+          <div
+            ref="canvasWrap"
+            class="pict-canvas-wrap"
+            :class="{
+              'pict-canvas-wrap--frozen':
+                (game.getTurnSolved() && !game.getGameOver() && !game.isDrawer()) ||
+                game.hasPendingDrawerWordChoice(),
+            }"
           >
-            {{ $t('kiwi-games:pict_undo') }}
-          </button>
-          <button type="button" class="pict-toolbar__clear" @click="clearBoard">{{ $t('kiwi-games:pict_clear') }}</button>
-        </div>
-        <div v-else-if="game.isDrawer() && !game.getGameOver() && game.getTurnSolved()" class="pict-next">
-          <button type="button" class="pict-next__btn" @click="nextTurn">{{ $t('kiwi-games:pict_next_turn_btn') }}</button>
-        </div>
+            <canvas
+              ref="canvas"
+              class="pict-canvas"
+              :class="canvasCursorClass"
+              @pointerdown.prevent="onPointerDown"
+              @pointermove.prevent="onPointerMove"
+              @pointerup.prevent="onPointerUp"
+              @pointercancel.prevent="onPointerUp"
+              @pointerleave="onPointerLeave"
+            />
+          </div>
 
-        <div
-          v-if="game.getTurnSolved() && !game.getGameOver() && !game.isDrawer()"
-          class="pict-round-solved"
-        >
-          <p class="pict-round-solved__badge">{{ $t('kiwi-games:pict_word_found_badge') }}</p>
-          <p class="pict-round-solved__msg">{{ game.getGameMessage() }}</p>
-          <p class="pict-round-solved__hint">{{ $t('kiwi-games:pict_guess_closed') }}</p>
-        </div>
+          <div
+            v-if="game.isDrawer() && !game.getGameOver() && !game.getTurnSolved() && !game.hasPendingDrawerWordChoice()"
+            class="pict-toolbar"
+          >
+            <label class="pict-toolbar__label">
+              <input v-model="fillMode" type="checkbox" />
+              {{ $t('kiwi-games:pict_bucket') }}
+            </label>
+            <label v-if="fillMode" class="pict-toolbar__label">
+              {{ $t('kiwi-games:pict_fill_color') }}
+              <input v-model="fillColor" type="color" class="pict-toolbar__color" />
+            </label>
+            <label class="pict-toolbar__label">
+              {{ $t('kiwi-games:pict_brush_color') }}
+              <input v-model="brushColor" type="color" class="pict-toolbar__color" />
+            </label>
+            <label class="pict-toolbar__label">
+              {{ $t('kiwi-games:pict_brush_width') }}
+              <input v-model.number="brushWidth" type="range" min="1" max="12" />
+            </label>
+            <button
+              type="button"
+              class="pict-toolbar__undo"
+              :disabled="undoDisabled"
+              :title="$t('kiwi-games:pict_undo_title')"
+              @click="undoLastStroke"
+            >
+              {{ $t('kiwi-games:pict_undo') }}
+            </button>
+            <button type="button" class="pict-toolbar__clear" @click="clearBoard">{{ $t('kiwi-games:pict_clear') }}</button>
+          </div>
+          <div v-else-if="game.isDrawer() && !game.getGameOver() && game.getTurnSolved()" class="pict-next">
+            <button type="button" class="pict-next__btn" @click="nextTurn">{{ $t('kiwi-games:pict_next_turn_btn') }}</button>
+          </div>
 
-        <div v-if="game.isGuesser() && !game.getGameOver() && !game.getTurnSolved()" class="pict-guess">
-          <input
-            v-model="guessText"
-            type="text"
-            class="pict-guess__input"
-            :placeholder="$t('kiwi-games:pict_guess_placeholder')"
-            maxlength="64"
-            @keyup.enter="submitGuess"
-          />
-          <button type="button" class="pict-guess__btn" @click="submitGuess">{{ $t('kiwi-games:pict_send') }}</button>
-          <p v-if="game.getLastGuessWrong()" class="pict-guess__hint">{{ $t('kiwi-games:pict_wrong_guess') }}</p>
-        </div>
+          <div
+            v-if="game.getTurnSolved() && !game.getGameOver() && !game.isDrawer()"
+            class="pict-round-solved"
+          >
+            <p class="pict-round-solved__badge">{{ $t('kiwi-games:pict_word_found_badge') }}</p>
+            <p class="pict-round-solved__msg">{{ game.getGameMessage() }}</p>
+            <p class="pict-round-solved__hint">{{ $t('kiwi-games:pict_guess_closed') }}</p>
+          </div>
+
+          <div v-if="game.isGuesser() && !game.getGameOver() && !game.getTurnSolved()" class="pict-guess">
+            <input
+              v-model="guessText"
+              type="text"
+              class="pict-guess__input"
+              :placeholder="$t('kiwi-games:pict_guess_placeholder')"
+              maxlength="64"
+              @keyup.enter="submitGuess"
+            />
+            <button type="button" class="pict-guess__btn" @click="submitGuess">{{ $t('kiwi-games:pict_send') }}</button>
+            <p v-if="game.getLastGuessWrong()" class="pict-guess__hint">{{ $t('kiwi-games:pict_wrong_guess') }}</p>
+          </div>
+        </template>
 
         <div v-if="game.getGameOver() && scoreRows.length" class="pict-scoreboard">
           <p class="pict-scoreboard__title">{{ $t('kiwi-games:pict_final_scores') }}</p>
@@ -363,12 +359,12 @@ export default {
       if (!network || !network.ircClient || typeof network.ircClient.raw !== 'function') return;
       const rating = Math.max(1, Math.min(5, Math.floor(Number(this.feedbackRating) || 5)));
       const comment = this.sanitizeFeedbackText(this.feedbackText);
+      const stars = `${'\u2605'.repeat(rating)}${'\u2606'.repeat(5 - rating)}`;
+      const safeComment = comment || '-';
+      const payload = `[Pictionary] ${stars} (${rating}/5) - Desktop - Commentaire : ${safeComment}]`;
       this.feedbackSending = true;
       try {
-        network.ircClient.raw(`PRIVMSG #beta :note ${rating}/5`);
-        if (comment) {
-          network.ircClient.raw(`PRIVMSG #beta :${comment}`);
-        }
+        network.ircClient.raw(`PRIVMSG #beta :${payload}`);
         this.feedbackSent = true;
       } catch (_) {
         /* silent fail */
