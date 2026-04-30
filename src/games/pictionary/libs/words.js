@@ -1,29 +1,29 @@
 export const WORDS = [
-  'lèvres','chenille','fourmis','arc-en-ciel','méduse','cupcake','coquillage','herbe',
-  'île','manteau','abeille','œil','lion','voiture','bus','piscine',
+  'lèvre','chenille','fourmis','arc-en-ciel','méduse','cupcake','coquillage','herbe',
+  'île','manteau','abeille','oeil','lion','voiture','bus','piscine',
   'garçon','genou','salle de bain','ballon','veste','drapeau','océan','flocon de neige',
-  'football','raisins','bourdon','musique','livre','citron','dragon','rêve',
-  'yeux','triangle','lunettes de soleil','zèbre','pieds','fourmi','lit','fusée',
+  'football','raisin','bourdon','musique','livre','citron','dragon','rêve',
+  'yeux','triangle','lunettes de soleil','zèbre','pied','fourmi','lit','fusée',
   'rivière','bougie','sourire','alligator','lapin','plante','serpent','oiseau',
   'canard','chaton','Terre','étoile de mer','oreille','singe','sucette','soleil',
   'branche','couverture','orange','carotte','cube','dinosaure','hippopotame','bonbon',
   'prison','vache','tambour','hamburger','chapeau','lumière','escargot','chat',
   'chemise','nez','vivant','personne','bocal','queue','moto','baleine',
   'zigzag','valise','sac à dos','plume','ligne','moufle','femme','robot',
-  'fromage','cheminée','peigne','œuf','ver','zoo','pizza','mouche',
+  'fromage','cheminée','peigne','oeuf','ver','zoo','pizza','mouche',
   'stylo','pièce','pomme','baseball','ovale','skateboard','grenouille','cuillère',
   'cheval','plage','toboggan','coccinelle','Mickey Mouse','fenêtre','hélicoptère','bureau',
-  'tête','jambe','crayon','horloge','chaussettes','pantalon','bateau','diamant',
+  'tête','jambe','crayon','horloge','chaussette','pantalon','bateau','diamant',
   'insecte','boîte','visage','nuit','carré','tarte','ours','doigt',
   'banane','bouche','ongle','cerise','vélo','balai','feu','mer',
   'bec','bébé','bol','glace','lampe','blocs','écorce','éléphant',
-  'araignée','lit superposé','rocher','sac à main','feuille','navire','toile d’araignée','chaussure',
-  'cerf-volant','montagnes','lune','table','pluie','mouton','boucle','marguerite',
-  'bonhomme de neige','train','jambes','balançoire','montagne','tasse','camion','fleur',
-  'lunettes','crabe','hibou','bague','amour','lézard','porte','cœur',
+  'araignée','lit superposé','rocher','sac à main','feuille','navire','toile d\'araignée','chaussure',
+  'cerf-volant','lune','table','pluie','mouton','boucle','marguerite',
+  'bonhomme de neige','train','jambe','balançoire','montagne','tasse','camion','fleur',
+  'lunettes','crabe','hibou','bague','amour','lézard','porte','coeur',
   'bouton','girafe','poulet','chaise','pont','clé','cou','fantôme',
-  'ordinateur','nœud','pain','maïs','cornet de glace','eau','ange','fourchette',
-  'os','toit','sous-vêtements','poupée','poubelle','triste','papillon','citrouille d’Halloween',
+  'ordinateur','noeud','pain','maïs','cornet de glace','eau','ange','fourchette',
+  'os','toit','sous-vêtements','poupée','poubelle','triste','papillon','citrouille d\'Halloween',
   'maison','chien','étoile','biscuit','poisson','télévision','téléphone','avion',
   'sandwich','bulle','neige','arbre','etoile','gateau','arc','couronne',
   'epee','bouclier','sorciere','licorne','ninja','cuisine','parapluie','cadenas',
@@ -34,23 +34,23 @@ export const WORDS = [
   'monstre','trésor','carte','boussole','coffre','clé usb','calendrier','cadeau',
   'chocolat','popcorn','guitare','piano','foot','tennis','sac','montre',
   'batterie','ruban','arpenteuse','falaise','raie','bus scolaire','montgolfière','pépites de chocolat',
-  'papier','pilon','théière','prise','grotte','miette','enfants',
+  'papier','pilon','théière','prise','grotte','miette','enfant',
   'bavoir','panda','jean bleu','t-shirt','anguille','cocon','cuisinier','ville',
   'cuisinière','labyrinthe','coucher de soleil','pas','orgue','pop','ruban adhésif','iPad',
   'sifflement','pot','étang','lionceau','écureuil','lettre','noix de coco',
-  'serviette','héros','niche','dinde','guépard','acolyte','concombre','croûte',
+  'serviette','héro','niche','dinde','guépard','acolyte','concombre','croûte',
   'cicatrice','bâton','cloporte','grill','rat','ferme','défense','moisissure',
   'poumon','serrure','réfrigérateur','ambulance','harmonica','soda','aigle','orage',
   'sabot','tarte aux pommes','fougère','insecticide','ornithorynque','fourche','pomme de pin',
   'milieu','fossette','flaque','bretzel','évier','jouet','trampoline','minuteur',
   'toast','perceuse','cheeseburger','gomme','volcan','heureux','brindille','cheveux',
-  'champignon','clé à molette','crêpe','frites','poisson rouge','chèvre','portefeuille','ouragan',
+  'champignon','clé à molette','crêpe','frite','poisson rouge','chèvre','portefeuille','ouragan',
   'racine','cigogne','pyjama','champ','phoque','cire','paille','voilier',
   'orteil','sel et poivre','ping-pong','chaise à bascule','flamant rose','université','couverts','camion poubelle',
   'cadre','bois','masque','miel','impasse','machine à laver','ficelle','tournesol',
   'chauve-souris','épave','flûte','écart','mouchoir','équateur','désert','photographie',
   'fruit','golf','météore','castor','taxi','canne à pêche','violoncelle','temps',
-  'ordures','papa','trombone','algues','infirmière','sifflet','barbe à papa','shampoing',
+  'ordure','papa','trombone','algue','infirmière','sifflet','barbe à papa','shampoing',
   'sable','page','tiroir','pile','tondeuse','poêle','canoë','facteur',
   'côte','art','panier','parachutisme','cacahuète','cape'
 ];
@@ -93,10 +93,6 @@ export function dedupeWordsUsedList(arr) {
   return out;
 }
 
-/**
- * Indique si tout le dictionnaire `WORDS` est couvert par `usedStrings` (après normalisation),
- * donc plus aucun tirage « hors déjà utilisé » possible sans réinitialiser l’historique.
- */
 export function isDictionaryPoolExhausted(usedStrings) {
   const blocked = new Set();
   for (const u of usedStrings || []) {
@@ -107,7 +103,6 @@ export function isDictionaryPoolExhausted(usedStrings) {
   return !WORDS.some((w) => !blocked.has(normalizeGuess(w)));
 }
 
-/** Jusqu’à `count` entrées distinctes (après normalisation), tirées hors des mots déjà dans `usedStrings`. */
 export function pickUnusedWords(count, usedStrings) {
   const n = Math.max(0, Math.floor(count));
   if (!n) return [];

@@ -111,7 +111,7 @@ export default class ConnectFour {
     checkGame() {
         const board = this.data.gameBoard;
         let winningLine = null;
-        let winner = '';
+        let winnerMarker = '';
 
         for (const coords of WIN_LINES) {
             const [r0, c0] = coords[0];
@@ -131,13 +131,14 @@ export default class ConnectFour {
             }
 
             if (same) {
-                winner = firstVal;
+                winnerMarker = firstVal;
                 winningLine = coords;
                 break;
             }
         }
 
         if (winningLine) {
+            const winner = this.getWinnerNickFromMarker(winnerMarker);
             this.data.gameMessage = t('c4_winner', { winner });
             this.data.gameOver = true;
             winningLine.forEach(([r, c]) => {
@@ -161,6 +162,20 @@ export default class ConnectFour {
 
     getMarker() {
         return this.data.gameTurn % 2 === 0 ? 'O' : 'X';
+    }
+
+    getWinnerNickFromMarker(marker) {
+        if (marker === 'X') {
+            return this.data.startPlayer;
+        }
+
+        if (marker === 'O') {
+            return this.data.startPlayer === this.data.localPlayer
+                ? this.data.remotePlayer
+                : this.data.localPlayer;
+        }
+
+        return marker;
     }
 
     getNetwork() {
