@@ -4,7 +4,57 @@ import { t } from '../../shared/locales.js';
 
 const TAG = '+kiwiirc.com/pictionary';
 
+const MAX_TAG_JSON_LENGTH = 400;
+
 const games = {};
+
+function generateFragId() {
+  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 11)}`;
+}
+
+function payloadToFrags(payload, fragId) {
+  let chunkSize = Math.min(300, Math.max(1, payload.length));
+  while (chunkSize >= 24) {
+    const slices = [];
+    for (let offset = 0; offset < payload.length; offset += chunkSize) {
+      slices.push(payload.slice(offset, offset + chunkSize));
+    }
+    const numberOfSlices = slices.length;
+    const allFit = slices.every((sliceText, fragmentIndex) => {
+      const json = JSON.stringify({
+        cmd: 'frag',
+        id: fragId,
+        i: fragmentIndex,
+        numberOfSlices,
+        data: sliceText,
+      });
+      return json.length <= MAX_TAG_JSON_LENGTH;
+    });
+    if (allFit) {
+      return slices.map((sliceText, fragmentIndex) => ({
+        cmd: 'frag',
+        id: fragId,
+        i: fragmentIndex,
+        numberOfSlices,
+        data: sliceText,
+      }));
+    }
+    chunkSize = Math.floor(chunkSize * 0.75);
+  }
+  const slices = [];
+  const minimumChunkSize = 16;
+  for (let offset = 0; offset < payload.length; offset += minimumChunkSize) {
+    slices.push(payload.slice(offset, offset + minimumChunkSize));
+  }
+  const numberOfSlices = slices.length;
+  return slices.map((sliceText, fragmentIndex) => ({
+    cmd: 'frag',
+    id: fragId,
+    i: fragmentIndex,
+    numberOfSlices,
+    data: sliceText,
+  }));
+}
 
 export function gameKey(networkId, bufferName) {
   return `${networkId}\0${bufferName}`;
@@ -23,8 +73,8 @@ export function getGameForBuffer(buffer) {
 export function bufferIsChannel(buffer) {
   if (!buffer || !buffer.name) return false;
   if (typeof buffer.isChannel === 'function') return buffer.isChannel();
-  const n = buffer.name;
-  return n.startsWith('#') || n.startsWith('&');
+  const bufferName = buffer.name;
+  return bufferName.startsWith('#') || bufferName.startsWith('&');
 }
 
 export function newGame(network, localPlayer, tagTarget, isChannelGame) {
@@ -45,7 +95,14 @@ export function getGames() {
 }
 
 export function sendData(network, target, data) {
-  _sendData(network, target, data, TAG);
+  const payload = JSON.stringify(data);
+  if (payload.length <= MAX_TAG_JSON_LENGTH) {
+    _sendData(network, target, data, TAG);
+    return;
+  }
+  const fragId = generateFragId();
+  const frags = payloadToFrags(payload, fragId);
+  frags.forEach((frag) => _sendData(network, target, frag, TAG));
 }
 
 export function terminateGame(game) {

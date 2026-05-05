@@ -93,6 +93,65 @@ function channelNamesMatch(channelA, channelB) {
   return String(channelA).toLowerCase() === String(channelB).toLowerCase();
 }
 
+const FRAG_TIMEOUT_MS = 45000;
+const FRAG_MAX_PARTS = 2000;
+
+/** @type {Map<string, { partCount: number, parts: string[], timer?: number }>} */
+const fragBuffers = new Map();
+
+function cleanupFragState(reassemblyKey) {
+  const entry = fragBuffers.get(reassemblyKey);
+  if (entry?.timer) globalThis.clearTimeout(entry.timer);
+  fragBuffers.delete(reassemblyKey);
+}
+
+function scheduleFragExpiry(reassemblyKey) {
+  const entry = fragBuffers.get(reassemblyKey);
+  if (!entry) return;
+  if (entry.timer) globalThis.clearTimeout(entry.timer);
+  entry.timer = globalThis.setTimeout(() => cleanupFragState(reassemblyKey), FRAG_TIMEOUT_MS);
+}
+
+function consumePictionaryFrag(network, event, tagPayload) {
+  const fragmentId = tagPayload.id;
+  const fragmentIndex = tagPayload.i;
+  const partCount = tagPayload.numberOfSlices;
+  const payloadChunk = tagPayload.data;
+  if (
+    typeof fragmentId !== 'string' ||
+    !fragmentId ||
+    typeof fragmentIndex !== 'number' ||
+    typeof partCount !== 'number' ||
+    typeof payloadChunk !== 'string'
+  ) {
+    return null;
+  }
+  if (partCount < 1 || partCount > FRAG_MAX_PARTS || fragmentIndex < 0 || fragmentIndex >= partCount) {
+    return null;
+  }
+  const reassemblyKey = `${network.id}\0${event.nick}\0${fragmentId}`;
+  let state = fragBuffers.get(reassemblyKey);
+  if (!state) {
+    state = { partCount, parts: new Array(partCount) };
+    fragBuffers.set(reassemblyKey, state);
+  } else if (state.partCount !== partCount) {
+    cleanupFragState(reassemblyKey);
+    return null;
+  }
+  state.parts[fragmentIndex] = payloadChunk;
+  scheduleFragExpiry(reassemblyKey);
+  for (let idx = 0; idx < partCount; idx++) {
+    if (state.parts[idx] === undefined) return null;
+  }
+  cleanupFragState(reassemblyKey);
+  const joinedPayload = state.parts.join('');
+  try {
+    return JSON.parse(joinedPayload);
+  } catch {
+    return null;
+  }
+}
+
 function handlePictionaryChannelParticipantGone(kiwi, network, game, gameKey, nick, leftVerb) {
   const targetBuffer = kiwi.state.getBufferByName(network.id, game.getTagTarget());
   const removed = game.removeParticipant(nick);
@@ -166,6 +225,18 @@ export function init(kiwi, config) {
 
     if (!isChannelTarget && !pmToMe) {
       return;
+    }
+
+    if (event.nick === network.nick && data.cmd === 'frag') {
+      return;
+    }
+
+    if (data.cmd === 'frag') {
+      const assembled = consumePictionaryFrag(network, event, data);
+      if (!assembled) {
+        return;
+      }
+      data = assembled;
     }
 
     if (event.nick === network.nick && echoDrawCmd(data.cmd)) {
