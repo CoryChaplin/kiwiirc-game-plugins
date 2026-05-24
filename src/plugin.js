@@ -1,6 +1,7 @@
 import { init as initTictactoe } from './games/tictactoe/index.js';
 import { init as initConnectFour } from './games/connectfour/index.js';
 import { init as initPictionary } from './games/pictionary/index.js';
+import { init as initBattleship } from './games/battleship/index.js';
 import GamesDropdown from './games/shared/components/GamesDropdown.vue';
 import Locales, { getPluginBasePath } from './games/shared/locales.js';
 
@@ -38,12 +39,14 @@ kiwi.plugin('kiwi-games', function(kiwi) {
         tictactoe:   { enabled: true, button: true, command: true },
         connectfour: { enabled: true, button: true, command: true },
         pictionary:  { enabled: true, button: true, command: true },
+        battleship:  { enabled: true, button: true, command: true },
     };
 
     const cfg = {
         tictactoe:   { ...defaults.tictactoe,   ...(settings.tictactoe   || {}) },
         connectfour: { ...defaults.connectfour, ...(settings.connectfour || {}) },
         pictionary:  { ...defaults.pictionary,  ...(settings.pictionary  || {}) },
+        battleship:  { ...defaults.battleship,  ...(settings.battleship  || {}) },
     };
 
     if (cfg.tictactoe.enabled) {
@@ -55,8 +58,11 @@ kiwi.plugin('kiwi-games', function(kiwi) {
     if (cfg.pictionary.enabled) {
         initPictionary(kiwi, cfg.pictionary);
     }
+    if (cfg.battleship.enabled) {
+        initBattleship(kiwi, cfg.battleship);
+    }
 
-    const anyEnabled = cfg.tictactoe.enabled || cfg.connectfour.enabled || cfg.pictionary.enabled;
+    const anyEnabled = cfg.tictactoe.enabled || cfg.connectfour.enabled || cfg.pictionary.enabled || cfg.battleship.enabled;
     if (anyEnabled) {
         kiwi.addUi('header_query', GamesDropdown);
     }

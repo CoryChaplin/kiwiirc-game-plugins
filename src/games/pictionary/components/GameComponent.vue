@@ -70,9 +70,8 @@
               {{ $t('kiwi-games:pict_word_to_draw') }} <strong>{{ game.getWord() }}</strong>
             </template>
           </div>
-          <div v-else class="pict-word pict-word--hidden">
-            <template v-if="game.getTurnSolved()">{{ $t('kiwi-games:pict_turn_done') }}</template>
-            <template v-else>{{ $t('kiwi-games:pict_guess_hint', { drawer: game.getDrawer() }) }}</template>
+          <div v-else-if="game.getTurnSolved()" class="pict-word pict-word--hidden">
+            {{ $t('kiwi-games:pict_turn_done') }}
           </div>
 
           <div

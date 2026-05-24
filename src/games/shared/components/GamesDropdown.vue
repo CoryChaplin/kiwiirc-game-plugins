@@ -36,7 +36,22 @@ const c4Svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">'
     + '<circle cx="18" cy="6" r="2.5" fill="currentColor"/>'
     + '</svg>';
 
+const bsSvg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">'
+    + '<path d="M3 16L6 18.5H18L21 16H3Z"/>'
+    + '<path d="M6.5 16V11H17.5V16"/>'
+    + '<rect x="9" y="7" width="6" height="4" rx="1"/>'
+    + '<line x1="12" y1="7" x2="12" y2="4.5"/>'
+    + '<line x1="15" y1="12.5" x2="19.5" y2="10.5"/>'
+    + '<line x1="9" y1="12.5" x2="4.5" y2="10.5"/>'
+    + '<line x1="6.5" y1="13.5" x2="17.5" y2="13.5"/>'
+    + '<line x1="12" y1="11" x2="12" y2="16"/>'
+    + '<path d="M4 20C5 19.2 6 19.2 7 20"/>'
+    + '<path d="M9 20C10 19.2 11 19.2 12 20"/>'
+    + '<path d="M14 20C15 19.2 16 19.2 17 20"/>'
+    + '</svg>';
+
 const GAME_DEFS = [
+    { id: 'battleship',  labelKey: 'dropdown_battleship',  icon: bsSvg },
     { id: 'connectfour', labelKey: 'dropdown_connectfour', icon: c4Svg },
     { id: 'tictactoe',   labelKey: 'dropdown_tictactoe',   icon: tttSvg },
     { id: 'pictionary',  labelKey: 'dropdown_pictionary',   icon: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor"><path d="M5.6 11.6l-1.2-1.2c-0.8-0.2-2-0.1-2.7 1-0.8 1.1-0.3 2.8-1.7 4.6 0 0 3.5 0 4.8-1.3 1.2-1.2 1.2-2.2 1-3l-0.2-0.1z"/><path d="M5.8 8.1c-0.2 0.3-0.5 0.7-0.7 1 0 0.2-0.1 0.3-0.2 0.4l1.5 1.5c0.1-0.1 0.3-0.2 0.4-0.3 0.3-0.2 0.7-0.4 1-0.7 0.4 0 0.6-0.2 0.8-0.4l-2.2-2.2c-0.2 0.2-0.4 0.4-0.6 0.7z"/><path d="M15.8 0.2c-0.3-0.3-0.7-0.3-1-0.1 0 0-3 2.5-5.9 5.1-0.4 0.4-0.7 0.7-1.1 1-0.2 0.2-0.4 0.4-0.6 0.5l2.1 2.1c0.2-0.2 0.4-0.4 0.5-0.7 0.3-0.4 0.6-0.7 0.9-1.1 2.5-3 5.1-5.9 5.1-5.9 0.3-0.2 0.3-0.6 0-0.9z"/></svg>' },
