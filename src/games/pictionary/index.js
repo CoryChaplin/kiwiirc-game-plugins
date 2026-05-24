@@ -570,6 +570,9 @@ export function init(kiwi, config) {
         if (!game || !game.isDrawer() || typeof data.text !== 'string' || game.getGameOver()) {
           break;
         }
+        if (game.getTurnSolved()) {
+          break;
+        }
         if (game.isChannelGame()) {
           if (!game.isParticipantNick(event.nick) || event.nick === game.getDrawer()) {
             break;
@@ -604,6 +607,9 @@ export function init(kiwi, config) {
         if (!game) break;
         if (data.correct) {
           if (event.nick === network.nick) {
+            break;
+          }
+          if (game.getTurnSolved()) {
             break;
           }
           if (data.word) {

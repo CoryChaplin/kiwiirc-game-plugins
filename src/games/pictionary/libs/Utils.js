@@ -181,7 +181,7 @@ export function getGames() {
 export function sendData(network, target, data) {
   const payload = JSON.stringify(data);
   if (payload.length <= MAX_TAG_JSON_LENGTH) {
-    enqueueOutbound(network, target, { network, target, data });
+    _sendData(network, target, data, TAG);
     return;
   }
   const fragId = generateFragId();
