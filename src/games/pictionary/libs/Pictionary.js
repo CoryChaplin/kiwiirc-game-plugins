@@ -384,10 +384,6 @@ export default class Pictionary {
     this.data.scoresByNick[nick] += 1;
   }
 
-  setTurnSolved(solved) {
-    this.data.turnSolved = !!solved;
-  }
-
   markTurnSolved(msg) {
     this.data.turnSolved = true;
     this.data.gameMessage = msg || this.data.gameMessage;

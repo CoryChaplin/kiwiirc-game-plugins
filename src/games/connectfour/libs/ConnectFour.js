@@ -230,10 +230,6 @@ export default class ConnectFour {
         return this.data.showGame;
     }
 
-    setShowGame(val) {
-        this.data.showGame = val;
-    }
-
     getGameOver() {
         return this.data.gameOver;
     }
@@ -266,9 +262,5 @@ export default class ConnectFour {
         this.data.gameMessage = this.isMyTurn()
             ? t('c4_your_turn')
             : t('c4_waiting', { nick: this.data.remotePlayer });
-    }
-
-    getBoardValues() {
-        return this.data.gameBoard.map((row) => row.map((cell) => cell.val));
     }
 }

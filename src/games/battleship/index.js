@@ -57,9 +57,18 @@ export function init(kiwi, config) {
         ) {
             return;
         }
-        let data = JSON.parse(event.tags['+kiwiirc.com/bs']);
+        let data;
+        try {
+            data = JSON.parse(event.tags['+kiwiirc.com/bs']);
+        } catch (_) {
+            return;
+        }
         let buffer = kiwi.state.getOrAddBufferByName(network.id, event.nick);
         let game = Utils.getGame(event.nick);
+
+        if (data.cmd !== 'invite' && !game) {
+            return;
+        }
 
         switch (data.cmd) {
         case 'invite': {
@@ -120,6 +129,9 @@ export function init(kiwi, config) {
                 break;
             }
             if (game.getGameTurn() !== data.turn) {
+                if (data.turn < game.getGameTurn() || game.getGameOver()) {
+                    break;
+                }
                 game.setGameOver(true);
                 let message = t('common_turn_out_of_sync');
                 game.setGameMessage(message);
@@ -128,6 +140,9 @@ export function init(kiwi, config) {
             }
             const result = game.processIncomingFire(data.row, data.col);
             if (!result.valid) {
+                if (result.duplicate) {
+                    break;
+                }
                 game.setGameOver(true);
                 let message = t('common_turn_out_of_sync');
                 game.setGameMessage(message);
@@ -160,12 +175,17 @@ export function init(kiwi, config) {
                 break;
             }
             if (game.getGameTurn() !== data.turn) {
+                if (data.turn < game.getGameTurn() || game.getGameOver()) {
+                    break;
+                }
+                game.clearFirePending();
                 game.setGameOver(true);
                 let message = t('common_turn_out_of_sync');
                 game.setGameMessage(message);
                 Utils.sendData(network, game.getRemotePlayer(), { cmd: 'error', message: message });
                 break;
             }
+            game.clearFirePending();
             game.applyFireResult(data.row, data.col, data.hit, data.sunk, data.sunkCells);
             if (data.allSunk) {
                 game.applyFleetReveal(data.fleetCells);
@@ -187,6 +207,7 @@ export function init(kiwi, config) {
         }
         case 'error': {
             if (game) {
+                game.clearFirePending();
                 game.setGameOver(true);
                 game.setGameMessage(data.message);
             }
@@ -256,16 +277,37 @@ export function init(kiwi, config) {
         if (event.nick === network.nick) {
             Object.keys(Utils.getGames()).forEach((key) => {
                 let game = Utils.getGame(key);
-                if (game && game.getInviteSent()) {
-                    Utils.setGame(game.getRemotePlayer(), null);
+                if (!game) {
+                    return;
+                }
+                if (game.getShowGame() && !game.getGameOver()) {
+                    Utils.terminateGame(game);
+                } else if (game.getInviteSent() || game.getShowInvite()) {
+                    Utils.removeGame(key);
                 }
             });
             kiwi.emit('plugin-battleship.update-button');
             return;
         }
         let game = Utils.getGame(event.nick);
-        if (game && game.getInviteSent()) {
-            Utils.setGame(game.getRemotePlayer(), null);
+        if (!game) {
+            return;
+        }
+        if (game.getShowGame() && !game.getGameOver()) {
+            game.setGameOver(true);
+            game.setGameMessage(t('bs_ended_by', { nick: event.nick }));
+            let buffer = kiwi.state.getBufferByName(network.id, event.nick);
+            if (buffer) {
+                kiwi.state.addMessage(buffer, {
+                    nick: '*',
+                    message: t('bs_remote_ended', { nick: event.nick }),
+                    type: 'message',
+                });
+            }
+            Utils.removeGame(event.nick);
+            kiwi.emit('plugin-battleship.update-button');
+        } else if (game.getInviteSent() || game.getShowInvite()) {
+            Utils.removeGame(event.nick);
             kiwi.emit('plugin-battleship.update-button');
         }
     });

@@ -181,10 +181,6 @@ export default class TicTacToe {
         return this.data.showGame;
     }
 
-    setShowGame(val) {
-        this.data.showGame = val;
-    }
-
     getGameOver() {
         return this.data.gameOver;
     }

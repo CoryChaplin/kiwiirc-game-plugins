@@ -61,6 +61,7 @@ export default class Battleship {
                     shipsToPlace: SHIP_FLEET.map((ship) => ({ ...ship })),
                     placementHorizontal: true,
                     activeShipIndex: 0,
+                    firePending: false,
                 };
             },
         });
@@ -83,6 +84,7 @@ export default class Battleship {
         data.shipsToPlace = SHIP_FLEET.map((ship) => ({ ...ship }));
         data.placementHorizontal = true;
         data.activeShipIndex = 0;
+        data.firePending = false;
         this.setPlacementMessage();
     }
 
@@ -203,6 +205,7 @@ export default class Battleship {
     startBattle() {
         this.data.phase = 'battle';
         this.data.gameTurn = 1;
+        this.data.firePending = false;
         this.setTurnMessage();
     }
 
@@ -212,17 +215,34 @@ export default class Battleship {
     }
 
     canFireAt(row, col) {
-        if (this.data.phase !== 'battle' || this.data.gameOver || !this.isMyTurn()) {
+        if (this.data.phase !== 'battle' || this.data.gameOver || this.data.firePending || !this.isMyTurn()) {
             return false;
         }
         const cell = this.data.targetGrid[row][col];
         return cell.state === '';
     }
 
+    markPendingShot(row, col) {
+        this.data.firePending = true;
+        this.data.targetGrid[row][col].state = 'P';
+        this.data.gameMessage = t('bs_shot_pending');
+    }
+
+    clearFirePending() {
+        this.data.firePending = false;
+        if (!this.data.gameOver && this.data.phase === 'battle') {
+            this.setTurnMessage();
+        }
+    }
+
+    getFirePending() {
+        return this.data.firePending;
+    }
+
     processIncomingFire(row, col) {
         const cell = this.data.fleetGrid[row][col];
         if (cell.targeted) {
-            return { valid: false };
+            return { valid: false, duplicate: true };
         }
         cell.targeted = true;
 
@@ -367,10 +387,6 @@ export default class Battleship {
         return this.data.showGame;
     }
 
-    setShowGame(val) {
-        this.data.showGame = val;
-    }
-
     getGameOver() {
         return this.data.gameOver;
     }
@@ -409,18 +425,6 @@ export default class Battleship {
 
     isLocalReady() {
         return this.data.localReady;
-    }
-
-    isOpponentReady() {
-        return this.data.opponentReady;
-    }
-
-    getActiveShip() {
-        const idx = this.data.activeShipIndex;
-        if (idx >= this.data.shipsToPlace.length) {
-            return null;
-        }
-        return this.data.shipsToPlace[idx];
     }
 
     isPlacementHorizontal() {
