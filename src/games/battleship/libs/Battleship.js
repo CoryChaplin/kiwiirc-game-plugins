@@ -5,8 +5,7 @@ export const GRID_SIZE = 10;
 export const SHIP_FLEET = [
     { id: 'carrier', length: 5 },
     { id: 'battleship', length: 4 },
-    { id: 'cruiser1', length: 3 },
-    { id: 'cruiser2', length: 3 },
+    { id: 'cruiser', length: 3 },
     { id: 'submarine', length: 3 },
     { id: 'destroyer', length: 2 },
 ];

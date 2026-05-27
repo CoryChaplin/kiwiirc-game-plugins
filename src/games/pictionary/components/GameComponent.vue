@@ -187,8 +187,6 @@ import * as Utils from '../libs/Utils.js';
 import { floodFillImageData, hexToRgb } from '../libs/canvasFloodFill.js';
 import GameFeedback from '../../shared/components/GameFeedback.vue';
 
-const CANVAS_ASPECT = 520 / 320;
-
 export default {
   components: { GameFeedback },
   data() {
@@ -260,21 +258,41 @@ export default {
       const key = typeof game.getGameKey === 'function' ? game.getGameKey() : '';
       return `${key}:${game.getGameOver() ? '1' : '0'}`;
     },
+    canvasLayoutKey() {
+      const game = this.game;
+      if (!game) return '';
+      return [
+        game.getDrawer(),
+        game.getTurnSolved() ? '1' : '0',
+        game.hasPendingDrawerWordChoice() ? '1' : '0',
+        game.getGameOver() ? '1' : '0',
+        game.getPaintOps().length,
+      ].join('|');
+    },
+  },
+  watch: {
+    canvasLayoutKey() {
+      this.invalidateCanvasSize();
+      this.$nextTick(() => this._scheduleSetupCanvas());
+    },
   },
   mounted() {
     this.listen(kiwi, 'plugin-pictionary.update-button', () => {
       this.$forceUpdate();
     });
     this.listen(kiwi, 'plugin-pictionary.redraw-canvas', () => {
-      this.$nextTick(() => this.redraw());
+      this.invalidateCanvasSize();
+      this.$nextTick(() => this._scheduleSetupCanvas());
     });
     this._scheduleSetupCanvas = () => {
       if (this._setupCanvasRaf) {
         cancelAnimationFrame(this._setupCanvasRaf);
       }
       this._setupCanvasRaf = requestAnimationFrame(() => {
-        this._setupCanvasRaf = null;
-        this.setupCanvas();
+        requestAnimationFrame(() => {
+          this._setupCanvasRaf = null;
+          this.setupCanvas();
+        });
       });
     };
     this.$nextTick(() => this.ensureCanvasObserver());
@@ -296,6 +314,11 @@ export default {
     }
   },
   methods: {
+    invalidateCanvasSize() {
+      this._lastCssW = null;
+      this._lastCssH = null;
+      this._lastDpr = null;
+    },
     ensureCanvasObserver() {
       const wrap = this.$refs.canvasWrap;
       if (!wrap || !this.game || !this.game.getShowGame()) {
@@ -325,8 +348,9 @@ export default {
       const wrap = this.$refs.canvasWrap;
       if (!el || !wrap) return;
       const dpr = window.devicePixelRatio || 1;
-      const cssW = Math.max(1, Math.floor(wrap.clientWidth));
-      const cssH = Math.max(1, Math.round(cssW / CANVAS_ASPECT));
+      const rect = wrap.getBoundingClientRect();
+      const cssW = Math.max(1, Math.floor(rect.width));
+      const cssH = Math.max(1, Math.floor(rect.height));
       if (
         this._lastCssW === cssW &&
         this._lastCssH === cssH &&
@@ -337,20 +361,19 @@ export default {
       this._lastCssW = cssW;
       this._lastCssH = cssH;
       this._lastDpr = dpr;
-      this.logicalW = cssW;
-      this.logicalH = cssH;
-      el.style.width = `${cssW}px`;
-      el.style.height = `${cssH}px`;
       el.width = Math.round(cssW * dpr);
       el.height = Math.round(cssH * dpr);
+      this.logicalW = cssW;
+      this.logicalH = cssH;
       this.redraw();
     },
     normPoint(clientX, clientY) {
       const el = this.$refs.canvas;
       if (!el) return null;
       const r = el.getBoundingClientRect();
-      const w = this.logicalW;
-      const h = this.logicalH;
+      const dpr = window.devicePixelRatio || 1;
+      const w = el.width / dpr;
+      const h = el.height / dpr;
       const x = ((clientX - r.left) / r.width) * w;
       const y = ((clientY - r.top) / r.height) * h;
       if (x < 0 || y < 0 || x > w || y > h) return null;
@@ -363,9 +386,12 @@ export default {
       const el = this.$refs.canvas;
       if (!el || !this.game) return;
       const ctx = el.getContext('2d');
-      const w = this.logicalW;
-      const h = this.logicalH;
-      ctx.setTransform(window.devicePixelRatio || 1, 0, 0, window.devicePixelRatio || 1, 0, 0);
+      const dpr = window.devicePixelRatio || 1;
+      const w = el.width / dpr;
+      const h = el.height / dpr;
+      this.logicalW = w;
+      this.logicalH = h;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       ctx.fillStyle = '#fafafa';
       ctx.fillRect(0, 0, w, h);
       const ops = this.game.getPaintOps();
@@ -904,11 +930,13 @@ export default {
 .pict-canvas-wrap {
   width: 100%;
   min-width: 0;
+  aspect-ratio: 13 / 8;
   border-radius: 8px;
   overflow: hidden;
   border: 1px solid var(--comp-border, #b2b2b2);
   background: #e8e8e8;
   line-height: 0;
+  position: relative;
 }
 
 .pict-canvas-wrap--frozen {
@@ -965,6 +993,8 @@ export default {
 
 .pict-canvas {
   display: block;
+  width: 100%;
+  height: 100%;
   touch-action: none;
 }
 
