@@ -49,9 +49,14 @@ const bsSvg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill=
     + '<path d="M9 20C10 19.2 11 19.2 12 20"/>'
     + '<path d="M14 20C15 19.2 16 19.2 17 20"/>'
     + '</svg>';
+const chSvg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">'
+    + '<path d="M8 4h8v2h-2v3h2v2h-2v2.6l2.9 4.4H7.1L10 13.6V11H8V9h2V6H8V4z"/>'
+    + '<rect x="6" y="19.2" width="12" height="1.8" rx="0.9"/>'
+    + '</svg>';
 
 const GAME_DEFS = [
     { id: 'battleship',  labelKey: 'dropdown_battleship',  icon: bsSvg },
+    { id: 'chess',       labelKey: 'dropdown_chess',       icon: chSvg },
     { id: 'connectfour', labelKey: 'dropdown_connectfour', icon: c4Svg },
     { id: 'tictactoe',   labelKey: 'dropdown_tictactoe',   icon: tttSvg },
     { id: 'pictionary',  labelKey: 'dropdown_pictionary',   icon: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor"><path d="M5.6 11.6l-1.2-1.2c-0.8-0.2-2-0.1-2.7 1-0.8 1.1-0.3 2.8-1.7 4.6 0 0 3.5 0 4.8-1.3 1.2-1.2 1.2-2.2 1-3l-0.2-0.1z"/><path d="M5.8 8.1c-0.2 0.3-0.5 0.7-0.7 1 0 0.2-0.1 0.3-0.2 0.4l1.5 1.5c0.1-0.1 0.3-0.2 0.4-0.3 0.3-0.2 0.7-0.4 1-0.7 0.4 0 0.6-0.2 0.8-0.4l-2.2-2.2c-0.2 0.2-0.4 0.4-0.6 0.7z"/><path d="M15.8 0.2c-0.3-0.3-0.7-0.3-1-0.1 0 0-3 2.5-5.9 5.1-0.4 0.4-0.7 0.7-1.1 1-0.2 0.2-0.4 0.4-0.6 0.5l2.1 2.1c0.2-0.2 0.4-0.4 0.5-0.7 0.3-0.4 0.6-0.7 0.9-1.1 2.5-3 5.1-5.9 5.1-5.9 0.3-0.2 0.3-0.6 0-0.9z"/></svg>' },
