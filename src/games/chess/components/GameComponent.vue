@@ -18,9 +18,23 @@
                 <span class="chess-result__text">{{ game.getGameMessage() }}</span>
             </div>
             <div v-if="!game.getGameOver()" class="chess-status" :class="statusClass">
+                <span v-if="isMyTurnLive" class="chess-status__pulse" aria-hidden="true"></span>
                 <span class="chess-status__icon">{{ statusIcon }}</span>
                 <span class="chess-status__text">{{ game.getGameMessage() }}</span>
+                <span v-if="isMyTurnLive" class="chess-status__badge">{{ $t('kiwi-games:ch_your_turn_badge') }}</span>
             </div>
+            <div class="chess-captured chess-captured--opponent">
+                <span class="chess-captured__label">{{ opponentLabel }}</span>
+                <span class="chess-captured__pieces">
+                    <span
+                        v-for="(piece, idx) in lostPiecesList(opponentColor)"
+                        :key="'op-' + idx"
+                        class="chess-piece chess-piece--sm"
+                        :class="'chess-piece--' + piece.color"
+                    >{{ pieceGlyph(piece.type) }}</span>
+                </span>
+            </div>
+            <div class="chess-board-wrap" :class="{ 'chess-board-wrap--my-turn': isMyTurnLive }">
             <div class="chess-board" :class="{ 'chess-board--my-turn': isMyTurnLive }">
                 <button
                     v-for="cell in boardCells"
@@ -29,17 +43,41 @@
                     :class="squareClass(cell)"
                     @click="squareClicked(cell.r, cell.c)"
                 >
-                    {{ pieceSymbol(cell.piece) }}
+                    <span
+                        v-if="cell.piece"
+                        class="chess-piece"
+                        :class="'chess-piece--' + cell.piece.color"
+                    >{{ pieceGlyph(cell.piece.type) }}</span>
                 </button>
+            </div>
+            </div>
+            <div class="chess-captured chess-captured--local">
+                <span class="chess-captured__label">{{ localLabel }}</span>
+                <span class="chess-captured__pieces">
+                    <span
+                        v-for="(piece, idx) in lostPiecesList(localColor)"
+                        :key="'me-' + idx"
+                        class="chess-piece chess-piece--sm"
+                        :class="'chess-piece--' + piece.color"
+                    >{{ pieceGlyph(piece.type) }}</span>
+                </span>
             </div>
             <div v-if="pendingPromotion" class="chess-promo-overlay">
                 <div class="chess-promo-box">
                     <div class="chess-promo-title">{{ $t('kiwi-games:ch_promotion_title') }}</div>
                     <div class="chess-promo-actions">
-                        <button class="chess-promo-piece" @click="confirmPromotion('q')">{{ promotionSymbol('q') }}</button>
-                        <button class="chess-promo-piece" @click="confirmPromotion('r')">{{ promotionSymbol('r') }}</button>
-                        <button class="chess-promo-piece" @click="confirmPromotion('b')">{{ promotionSymbol('b') }}</button>
-                        <button class="chess-promo-piece" @click="confirmPromotion('n')">{{ promotionSymbol('n') }}</button>
+                        <button class="chess-promo-piece" @click="confirmPromotion('q')">
+                            <span class="chess-piece chess-piece--promo" :class="'chess-piece--' + localColor">{{ pieceGlyph('q') }}</span>
+                        </button>
+                        <button class="chess-promo-piece" @click="confirmPromotion('r')">
+                            <span class="chess-piece chess-piece--promo" :class="'chess-piece--' + localColor">{{ pieceGlyph('r') }}</span>
+                        </button>
+                        <button class="chess-promo-piece" @click="confirmPromotion('b')">
+                            <span class="chess-piece chess-piece--promo" :class="'chess-piece--' + localColor">{{ pieceGlyph('b') }}</span>
+                        </button>
+                        <button class="chess-promo-piece" @click="confirmPromotion('n')">
+                            <span class="chess-piece chess-piece--promo" :class="'chess-piece--' + localColor">{{ pieceGlyph('n') }}</span>
+                        </button>
                     </div>
                 </div>
             </div>
@@ -49,21 +87,7 @@
 
 <script>
 import * as Utils from '../libs/Utils.js';
-
-const PIECES = {
-    wp: '♙',
-    wn: '♘',
-    wb: '♗',
-    wr: '♖',
-    wq: '♕',
-    wk: '♔',
-    bp: '♟',
-    bn: '♞',
-    bb: '♝',
-    br: '♜',
-    bq: '♛',
-    bk: '♚',
-};
+import { getPieceGlyph } from '../libs/pieceGlyphs.js';
 
 export default {
     data() {
@@ -126,16 +150,25 @@ export default {
             if (this.game.getGameDraw()) return '🤝';
             return this.game.isLocalWinner() ? '🏆' : '💥';
         },
+        localColor() {
+            return this.game ? this.game.getLocalColor() : 'w';
+        },
+        opponentColor() {
+            return this.localColor === 'w' ? 'b' : 'w';
+        },
+        localLabel() {
+            return this.$t('kiwi-games:ch_lost_pieces_you');
+        },
+        opponentLabel() {
+            return this.$t('kiwi-games:ch_lost_pieces_opponent', { nick: this.game ? this.game.getRemotePlayer() : '' });
+        },
     },
     methods: {
-        pieceSymbol(piece) {
-            if (!piece) return '';
-            return PIECES[piece.color + piece.type] || '';
+        pieceGlyph(type) {
+            return getPieceGlyph(type);
         },
-        promotionSymbol(type) {
-            if (!this.game) return '';
-            const color = this.game.getLocalColor();
-            return PIECES[color + type] || '';
+        lostPiecesList(color) {
+            return this.game ? this.game.getLostPieces(color) : [];
         },
         getMovesForSelected() {
             if (!this.game || !this.game.getSelected()) return [];
@@ -267,17 +300,51 @@ export default {
     border-radius: 8px;
     padding: 10px 12px;
     border: 2px solid var(--comp-border, #888);
+    position: relative;
+    overflow: hidden;
+}
+.chess-status__pulse {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    animation: chess-turn-pulse 1.4s ease-in-out infinite;
+}
+.chess-status__badge {
+    margin-left: auto;
+    font-size: 0.72em;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    padding: 3px 8px;
+    border-radius: 999px;
+    background: #2ecc71;
+    color: #fff;
+    animation: chess-badge-blink 1.2s ease-in-out infinite;
+}
+.chess-status--my-turn {
+    background: linear-gradient(135deg, rgba(46, 204, 113, 0.22), rgba(46, 204, 113, 0.08));
+    border-color: #2ecc71;
+    box-shadow: 0 0 0 3px rgba(46, 204, 113, 0.18);
+    font-size: 1.05em;
+}
+.chess-status--my-check {
+    background: linear-gradient(135deg, rgba(231, 76, 60, 0.22), rgba(231, 76, 60, 0.08));
+    border-color: #e74c3c;
+    box-shadow: 0 0 0 3px rgba(231, 76, 60, 0.18);
+    font-size: 1.05em;
+}
+.chess-status--my-check .chess-status__pulse {
+    animation-name: chess-turn-pulse-danger;
+}
+.chess-status--my-check .chess-status__badge {
+    background: #e74c3c;
 }
 .chess-status__icon {
     font-size: 18px;
+    flex-shrink: 0;
 }
-.chess-status--my-turn {
-    background: rgba(46, 204, 113, 0.15);
-    border-color: #2ecc71;
-}
-.chess-status--my-check {
-    background: rgba(231, 76, 60, 0.18);
-    border-color: #e74c3c;
+.chess-status--my-turn .chess-status__icon {
+    font-size: 22px;
 }
 .chess-status--waiting {
     background: rgba(52, 152, 219, 0.12);
@@ -286,6 +353,72 @@ export default {
 .chess-status--game-over {
     opacity: 0.8;
 }
+.chess-captured {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 28px;
+    margin: 4px 0;
+    font-size: 13px;
+}
+.chess-captured--opponent {
+    margin-bottom: 6px;
+}
+.chess-captured--local {
+    margin-top: 6px;
+}
+.chess-captured__label {
+    font-weight: 600;
+    opacity: 0.75;
+    min-width: 90px;
+    flex-shrink: 0;
+}
+.chess-captured__pieces {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2px;
+    min-height: 24px;
+    align-items: center;
+}
+.chess-piece {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+    font-size: 34px;
+    user-select: none;
+    pointer-events: none;
+}
+.chess-piece--w {
+    color: #fff;
+    -webkit-text-fill-color: #fff;
+    -webkit-text-stroke: 1.8px #2b2b2b;
+    paint-order: stroke fill;
+    filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.35));
+}
+.chess-piece--b {
+    color: #141414;
+    -webkit-text-fill-color: #141414;
+    filter: drop-shadow(0 1px 0 rgba(255, 255, 255, 0.2));
+}
+.chess-piece--sm {
+    font-size: 21px;
+}
+.chess-piece--sm.chess-piece--w {
+    -webkit-text-stroke: 1.2px #2b2b2b;
+}
+.chess-piece--promo {
+    font-size: 30px;
+    pointer-events: none;
+}
+.chess-board-wrap {
+    width: fit-content;
+    border-radius: 4px;
+    transition: box-shadow 0.2s;
+}
+.chess-board-wrap--my-turn {
+    animation: chess-board-glow 1.4s ease-in-out infinite;
+}
 .chess-board {
     display: grid;
     grid-template-columns: repeat(8, 44px);
@@ -293,18 +426,18 @@ export default {
     width: fit-content;
 }
 .chess-board--my-turn {
-    box-shadow: 0 0 0 4px rgba(46, 204, 113, 0.22);
+    box-shadow: 0 0 0 4px rgba(46, 204, 113, 0.35);
 }
 .chess-square {
     width: 44px;
     height: 44px;
-    font-size: 28px;
     border: none;
     background: #f0d9b5;
     padding: 0;
-    line-height: 44px;
-    text-align: center;
     cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 .chess-square--dark {
     background: #b58863;
@@ -346,13 +479,31 @@ export default {
 }
 .chess-promo-piece {
     height: 48px;
-    font-size: 28px;
     border: 1px solid var(--comp-border, #777);
     border-radius: 8px;
     background: #f0f0f0;
     cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 .chess-promo-piece:hover {
     background: #e4f5ea;
+}
+@keyframes chess-turn-pulse {
+    0%, 100% { box-shadow: inset 0 0 0 0 rgba(46, 204, 113, 0); }
+    50% { box-shadow: inset 0 0 0 3px rgba(46, 204, 113, 0.35); }
+}
+@keyframes chess-turn-pulse-danger {
+    0%, 100% { box-shadow: inset 0 0 0 0 rgba(231, 76, 60, 0); }
+    50% { box-shadow: inset 0 0 0 3px rgba(231, 76, 60, 0.35); }
+}
+@keyframes chess-badge-blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
+}
+@keyframes chess-board-glow {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(46, 204, 113, 0); }
+    50% { box-shadow: 0 0 14px 4px rgba(46, 204, 113, 0.35); }
 }
 </style>

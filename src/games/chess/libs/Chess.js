@@ -248,6 +248,49 @@ function hasAnyLegalMove(board, color, rights, enPassant) {
     return false;
 }
 
+function getBoardPieces(board) {
+    const out = { w: [], b: [] };
+    for (let r = 0; r < 8; r++) {
+        for (let c = 0; c < 8; c++) {
+            const piece = board[r][c];
+            if (piece && piece.type !== 'k') {
+                out[piece.color].push({ type: piece.type, squareColor: (r + c) % 2 });
+            }
+        }
+    }
+    return out;
+}
+
+function isInsufficientMaterial(board) {
+    const pieces = getBoardPieces(board);
+    const w = pieces.w;
+    const b = pieces.b;
+    if (w.length === 0 && b.length === 0) {
+        return true;
+    }
+    const hasMajor = (list) => list.some((p) => p.type === 'q' || p.type === 'r' || p.type === 'p');
+    if (hasMajor(w) || hasMajor(b)) {
+        return false;
+    }
+    const minorCount = w.length + b.length;
+    if (minorCount <= 1) {
+        return true;
+    }
+    if (minorCount === 2 && w.length === 1 && b.length === 1) {
+        const wp = w[0];
+        const bp = b[0];
+        if (wp.type === 'n' && bp.type === 'n') {
+            return true;
+        }
+        if (wp.type === 'b' && bp.type === 'b') {
+            return wp.squareColor === bp.squareColor;
+        }
+    }
+    return false;
+}
+
+const PIECE_SORT = { q: 0, r: 1, b: 2, n: 3, p: 4 };
+
 export default class Chess {
     constructor(network, localPlayer, remotePlayer) {
         this.data = new kiwi.Vue({
@@ -281,6 +324,10 @@ export default class Chess {
                         w: null,
                         b: null,
                     },
+                    lostPieces: {
+                        w: [],
+                        b: [],
+                    },
                 };
             },
         });
@@ -307,6 +354,7 @@ export default class Chess {
             blackRookHMoved: false,
         };
         data.checkState = { w: null, b: null };
+        data.lostPieces = { w: [], b: [] };
         this.refreshCheckState();
         this.setTurnMessage();
     }
@@ -366,6 +414,10 @@ export default class Chess {
         const targetBefore = this.data.board[toR][toC];
         this.updateCastlingRightsBeforeMove(piece, fromR, fromC, targetBefore, toR, toC);
 
+        if (targetBefore) {
+            this.recordLostPiece(targetBefore);
+        }
+
         setBoardCellReactive(this.data.board, fromR, fromC, null);
         if (
             piece.type === 'p' &&
@@ -374,6 +426,10 @@ export default class Chess {
             this.data.enPassant.col === toC &&
             !targetBefore
         ) {
+            const epPiece = this.data.board[this.data.enPassant.captureRow][this.data.enPassant.captureCol];
+            if (epPiece) {
+                this.recordLostPiece(epPiece);
+            }
             setBoardCellReactive(
                 this.data.board,
                 this.data.enPassant.captureRow,
@@ -449,6 +505,16 @@ export default class Chess {
         };
     }
 
+    recordLostPiece(piece) {
+        this.data.lostPieces[piece.color].push({ color: piece.color, type: piece.type });
+    }
+
+    getLostPieces(color) {
+        return [...this.data.lostPieces[color]].sort(
+            (a, b) => (PIECE_SORT[a.type] ?? 9) - (PIECE_SORT[b.type] ?? 9)
+        );
+    }
+
     updateStateAfterMove(movingColor) {
         const enemyColor = opposite(movingColor);
         const enemyKing = findKing(this.data.board, enemyColor);
@@ -475,6 +541,13 @@ export default class Chess {
                 this.data.gameDraw = true;
                 this.data.gameMessage = t('ch_stalemate');
             }
+            return;
+        }
+
+        if (isInsufficientMaterial(this.data.board)) {
+            this.data.gameOver = true;
+            this.data.gameDraw = true;
+            this.data.gameMessage = t('ch_insufficient_material');
             return;
         }
 
