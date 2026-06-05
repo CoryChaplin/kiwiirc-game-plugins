@@ -109,6 +109,7 @@
     "ch_king_captured": "King captured - winner: {{nick}}",
     "ch_lost_pieces_you": "Your losses",
     "ch_lost_pieces_opponent": "{{nick}}'s losses",
+    "ch_pieces_lost": "Lost pieces",
     "ch_promotion_title": "Choose pawn promotion",
 
     "pict_title": "Pictionary",

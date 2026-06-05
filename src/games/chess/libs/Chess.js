@@ -328,6 +328,7 @@ export default class Chess {
                         w: [],
                         b: [],
                     },
+                    lastMove: null,
                 };
             },
         });
@@ -355,6 +356,7 @@ export default class Chess {
         };
         data.checkState = { w: null, b: null };
         data.lostPieces = { w: [], b: [] };
+        data.lastMove = null;
         this.refreshCheckState();
         this.setTurnMessage();
     }
@@ -369,6 +371,50 @@ export default class Chess {
 
     isMyTurn() {
         return this.getTurnColor() === this.getLocalColor();
+    }
+
+    getOpponentColor() {
+        return this.getLocalColor() === 'w' ? 'b' : 'w';
+    }
+
+    canPlayLocalMove(from, to, turn) {
+        if (this.data.gameOver || !this.isMyTurn()) {
+            return false;
+        }
+        if (this.data.gameTurn !== turn) {
+            return false;
+        }
+        if (!Array.isArray(from) || from.length !== 2 || !Array.isArray(to) || to.length !== 2) {
+            return false;
+        }
+        const piece = this.data.board[from[0]][from[1]];
+        if (!piece || piece.color !== this.getLocalColor()) {
+            return false;
+        }
+        return this.getLegalMovesFrom(from[0], from[1]).some(([r, c]) => r === to[0] && c === to[1]);
+    }
+
+    validateIncomingMove(from, to, turn) {
+        if (this.data.gameOver) {
+            return 'ignore';
+        }
+        if (!Array.isArray(from) || from.length !== 2 || !Array.isArray(to) || to.length !== 2) {
+            return 'ignore';
+        }
+        if (this.wasMoveAlreadyApplied(from, to, turn)) {
+            return 'duplicate';
+        }
+        if (this.getGameTurn() !== turn) {
+            return 'desync';
+        }
+        if (this.isMyTurn()) {
+            return 'ignore';
+        }
+        const piece = this.data.board[from[0]][from[1]];
+        if (!piece || piece.color !== this.getTurnColor()) {
+            return 'ignore';
+        }
+        return 'ok';
     }
 
     getLegalMovesFrom(row, col) {
@@ -418,22 +464,25 @@ export default class Chess {
             this.recordLostPiece(targetBefore);
         }
 
-        setBoardCellReactive(this.data.board, fromR, fromC, null);
-        if (
+        const enPassantCapture =
             piece.type === 'p' &&
+            !targetBefore &&
             this.data.enPassant &&
             this.data.enPassant.row === toR &&
-            this.data.enPassant.col === toC &&
-            !targetBefore
-        ) {
-            const epPiece = this.data.board[this.data.enPassant.captureRow][this.data.enPassant.captureCol];
+            this.data.enPassant.col === toC
+                ? [this.data.enPassant.captureRow, this.data.enPassant.captureCol]
+                : null;
+
+        setBoardCellReactive(this.data.board, fromR, fromC, null);
+        if (enPassantCapture) {
+            const epPiece = this.data.board[enPassantCapture[0]][enPassantCapture[1]];
             if (epPiece) {
                 this.recordLostPiece(epPiece);
             }
             setBoardCellReactive(
                 this.data.board,
-                this.data.enPassant.captureRow,
-                this.data.enPassant.captureCol,
+                enPassantCapture[0],
+                enPassantCapture[1],
                 null
             );
         }
@@ -454,6 +503,19 @@ export default class Chess {
             });
         }
         this.updateEnPassantAfterMove(piece, fromR, fromC, toR, toC);
+        const lastMove = {
+            from: [fromR, fromC],
+            to: [toR, toC],
+            by: piece.color,
+        };
+        if (enPassantCapture) {
+            lastMove.capture = enPassantCapture;
+        }
+        if (piece.type === 'k' && Math.abs(toC - fromC) === 2) {
+            lastMove.rookFrom = [toR, toC === 6 ? 7 : 0];
+            lastMove.rookTo = [toR, toC === 6 ? 5 : 3];
+        }
+        this.data.lastMove = lastMove;
         this.data.gameTurn++;
         this.clearSelected();
         this.refreshCheckState();
@@ -626,6 +688,13 @@ export default class Chess {
         this.data.gameOver = val;
     }
 
+    endInterrupted(message) {
+        this.data.gameOver = true;
+        this.data.gameDraw = false;
+        this.data.gameWinner = '';
+        this.data.gameMessage = message;
+    }
+
     getGameTurn() {
         return this.data.gameTurn;
     }
@@ -668,11 +737,62 @@ export default class Chess {
         return this.data.gameOver && !this.data.gameDraw && this.data.gameWinner === this.data.localPlayer;
     }
 
+    isDecisiveEnd() {
+        return this.data.gameDraw || !!this.data.gameWinner;
+    }
+
+    wasMoveAlreadyApplied(from, to, turn) {
+        if (this.data.gameTurn !== turn + 1) {
+            return false;
+        }
+        const lm = this.data.lastMove;
+        if (!lm) {
+            return false;
+        }
+        return (
+            lm.from[0] === from[0] &&
+            lm.from[1] === from[1] &&
+            lm.to[0] === to[0] &&
+            lm.to[1] === to[1]
+        );
+    }
+
     isKingInCheckAt(row, col) {
         const w = this.data.checkState.w;
         const b = this.data.checkState.b;
         if (w && w[0] === row && w[1] === col) return true;
         if (b && b[0] === row && b[1] === col) return true;
+        return false;
+    }
+
+    isOpponentLastMoveFrom(row, col) {
+        const lm = this.data.lastMove;
+        if (!lm || lm.by === this.getLocalColor()) {
+            return false;
+        }
+        if (lm.from[0] === row && lm.from[1] === col) {
+            return true;
+        }
+        if (lm.capture && lm.capture[0] === row && lm.capture[1] === col) {
+            return true;
+        }
+        if (lm.rookFrom && lm.rookFrom[0] === row && lm.rookFrom[1] === col) {
+            return true;
+        }
+        return false;
+    }
+
+    isOpponentLastMoveTo(row, col) {
+        const lm = this.data.lastMove;
+        if (!lm || lm.by === this.getLocalColor()) {
+            return false;
+        }
+        if (lm.to[0] === row && lm.to[1] === col) {
+            return true;
+        }
+        if (lm.rookTo && lm.rookTo[0] === row && lm.rookTo[1] === col) {
+            return true;
+        }
         return false;
     }
 }

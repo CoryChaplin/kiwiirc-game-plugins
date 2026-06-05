@@ -107,32 +107,34 @@ export function init(kiwi, config) {
             break;
         }
         case 'action': {
-            if (!Array.isArray(data.from) || !Array.isArray(data.to) || game.getGameTurn() !== data.turn) {
-                game.setGameOver(true);
+            const incoming = game.validateIncomingMove(data.from, data.to, data.turn);
+            if (incoming === 'duplicate' || incoming === 'ignore') {
+                break;
+            }
+            if (incoming === 'desync') {
                 const message = t('common_turn_out_of_sync');
-                game.setGameMessage(message);
+                game.endInterrupted(message);
                 Utils.sendData(network, game.getRemotePlayer(), { cmd: 'error', message });
                 break;
             }
             const ok = game.applyMove(data.from, data.to, data.promotion);
             if (!ok) {
-                game.setGameOver(true);
                 const message = t('common_turn_out_of_sync');
-                game.setGameMessage(message);
+                game.endInterrupted(message);
                 Utils.sendData(network, game.getRemotePlayer(), { cmd: 'error', message });
-            } else if (game.getGameOver()) {
+                break;
+            }
+            if (game.getGameOver()) {
                 kiwi.emit('plugin-kiwi-games.game-completed', { game: 'chess' });
             }
             break;
         }
         case 'error': {
-            game.setGameOver(true);
-            game.setGameMessage(data.message || t('common_turn_out_of_sync'));
+            game.endInterrupted(data.message || t('common_turn_out_of_sync'));
             break;
         }
         case 'terminate': {
-            game.setGameOver(true);
-            game.setGameMessage(t('ch_ended_by', { nick: event.nick }));
+            game.endInterrupted(t('ch_ended_by', { nick: event.nick }));
             kiwi.state.addMessage(buffer, { nick: '*', message: t('ch_remote_ended', { nick: event.nick }), type: 'message' });
             break;
         }
@@ -197,8 +199,7 @@ export function init(kiwi, config) {
         const game = Utils.getGame(event.nick);
         if (!game) return;
         if (game.getShowGame() && !game.getGameOver()) {
-            game.setGameOver(true);
-            game.setGameMessage(t('ch_ended_by', { nick: event.nick }));
+            game.endInterrupted(t('ch_ended_by', { nick: event.nick }));
             const buffer = kiwi.state.getBufferByName(network.id, event.nick);
             if (buffer) {
                 kiwi.state.addMessage(buffer, { nick: '*', message: t('ch_remote_ended', { nick: event.nick }), type: 'message' });

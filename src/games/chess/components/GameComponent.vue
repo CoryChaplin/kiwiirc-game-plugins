@@ -17,50 +17,61 @@
                 <span class="chess-result__icon">{{ resultIcon }}</span>
                 <span class="chess-result__text">{{ game.getGameMessage() }}</span>
             </div>
-            <div v-if="!game.getGameOver()" class="chess-status" :class="statusClass">
-                <span v-if="isMyTurnLive" class="chess-status__pulse" aria-hidden="true"></span>
-                <span class="chess-status__icon">{{ statusIcon }}</span>
-                <span class="chess-status__text">{{ game.getGameMessage() }}</span>
-                <span v-if="isMyTurnLive" class="chess-status__badge">{{ $t('kiwi-games:ch_your_turn_badge') }}</span>
-            </div>
-            <div class="chess-captured chess-captured--opponent">
-                <span class="chess-captured__label">{{ opponentLabel }}</span>
-                <span class="chess-captured__pieces">
-                    <span
-                        v-for="(piece, idx) in lostPiecesList(opponentColor)"
-                        :key="'op-' + idx"
-                        class="chess-piece chess-piece--sm"
-                        :class="'chess-piece--' + piece.color"
-                    >{{ pieceGlyph(piece.type) }}</span>
-                </span>
-            </div>
-            <div class="chess-board-wrap" :class="{ 'chess-board-wrap--my-turn': isMyTurnLive }">
-            <div class="chess-board" :class="{ 'chess-board--my-turn': isMyTurnLive }">
-                <button
-                    v-for="cell in boardCells"
-                    :key="cell.id"
-                    class="chess-square"
-                    :class="squareClass(cell)"
-                    @click="squareClicked(cell.r, cell.c)"
-                >
-                    <span
-                        v-if="cell.piece"
-                        class="chess-piece"
-                        :class="'chess-piece--' + cell.piece.color"
-                    >{{ pieceGlyph(cell.piece.type) }}</span>
-                </button>
-            </div>
-            </div>
-            <div class="chess-captured chess-captured--local">
-                <span class="chess-captured__label">{{ localLabel }}</span>
-                <span class="chess-captured__pieces">
-                    <span
-                        v-for="(piece, idx) in lostPiecesList(localColor)"
-                        :key="'me-' + idx"
-                        class="chess-piece chess-piece--sm"
-                        :class="'chess-piece--' + piece.color"
-                    >{{ pieceGlyph(piece.type) }}</span>
-                </span>
+            <div class="chess-play-area">
+                <div class="chess-board-wrap" :class="{ 'chess-board-wrap--my-turn': isMyTurnLive }">
+                    <div class="chess-board" :class="{ 'chess-board--my-turn': isMyTurnLive }">
+                        <button
+                            v-for="cell in boardCells"
+                            :key="cell.id"
+                            class="chess-square"
+                            :class="squareClass(cell)"
+                            @click="squareClicked(cell.r, cell.c)"
+                        >
+                            <span
+                                v-if="cell.piece"
+                                class="chess-piece"
+                                :class="'chess-piece--' + cell.piece.color"
+                            >{{ pieceGlyph(cell.piece.type) }}</span>
+                        </button>
+                    </div>
+                </div>
+                <aside class="chess-sidebar">
+                    <div
+                        class="chess-sidebar__panel"
+                        :class="{ 'chess-sidebar__panel--no-status': game.getGameOver() }"
+                    >
+                        <div class="chess-player-block chess-player-block--opponent">
+                            <div class="chess-player-block__nick">{{ opponentNick }}</div>
+                            <div class="chess-player-block__hint">{{ $t('kiwi-games:ch_pieces_lost') }}</div>
+                            <div class="chess-captured__pieces">
+                                <span
+                                    v-for="(piece, idx) in lostPiecesList(opponentColor)"
+                                    :key="'op-' + idx"
+                                    class="chess-piece chess-piece--sm"
+                                    :class="'chess-piece--' + piece.color"
+                                >{{ pieceGlyph(piece.type) }}</span>
+                            </div>
+                        </div>
+                        <div v-if="!game.getGameOver()" class="chess-status chess-status--sidebar" :class="statusClass">
+                            <span v-if="isMyTurnLive" class="chess-status__pulse" aria-hidden="true"></span>
+                            <span class="chess-status__icon">{{ statusIcon }}</span>
+                            <span class="chess-status__text">{{ game.getGameMessage() }}</span>
+                            <span v-if="isMyTurnLive" class="chess-status__badge">{{ $t('kiwi-games:ch_your_turn_badge') }}</span>
+                        </div>
+                        <div class="chess-player-block chess-player-block--local">
+                            <div class="chess-player-block__nick">{{ localNick }}</div>
+                            <div class="chess-player-block__hint">{{ $t('kiwi-games:ch_pieces_lost') }}</div>
+                            <div class="chess-captured__pieces">
+                                <span
+                                    v-for="(piece, idx) in lostPiecesList(localColor)"
+                                    :key="'me-' + idx"
+                                    class="chess-piece chess-piece--sm"
+                                    :class="'chess-piece--' + piece.color"
+                                >{{ pieceGlyph(piece.type) }}</span>
+                            </div>
+                        </div>
+                    </div>
+                </aside>
             </div>
             <div v-if="pendingPromotion" class="chess-promo-overlay">
                 <div class="chess-promo-box">
@@ -143,11 +154,13 @@ export default {
         resultClass() {
             if (!this.game) return '';
             if (this.game.getGameDraw()) return 'chess-result--draw';
+            if (!this.game.isDecisiveEnd()) return 'chess-result--interrupted';
             return this.game.isLocalWinner() ? 'chess-result--win' : 'chess-result--lose';
         },
         resultIcon() {
             if (!this.game) return '';
             if (this.game.getGameDraw()) return '🤝';
+            if (!this.game.isDecisiveEnd()) return '⚠️';
             return this.game.isLocalWinner() ? '🏆' : '💥';
         },
         localColor() {
@@ -156,11 +169,11 @@ export default {
         opponentColor() {
             return this.localColor === 'w' ? 'b' : 'w';
         },
-        localLabel() {
-            return this.$t('kiwi-games:ch_lost_pieces_you');
+        localNick() {
+            return this.game ? this.game.getLocalPlayer() : '';
         },
-        opponentLabel() {
-            return this.$t('kiwi-games:ch_lost_pieces_opponent', { nick: this.game ? this.game.getRemotePlayer() : '' });
+        opponentNick() {
+            return this.game ? this.game.getRemotePlayer() : '';
         },
     },
     methods: {
@@ -185,6 +198,8 @@ export default {
                 'chess-square--selected': !!isSelected,
                 'chess-square--legal': isLegal,
                 'chess-square--check': this.game && this.game.isKingInCheckAt(cell.r, cell.c),
+                'chess-square--last-from': this.game && this.game.isOpponentLastMoveFrom(cell.r, cell.c),
+                'chess-square--last-to': this.game && this.game.isOpponentLastMoveTo(cell.r, cell.c),
             };
         },
         inviteClicked(accepted) {
@@ -226,6 +241,9 @@ export default {
             }
 
             const turn = this.game.getGameTurn();
+            if (!this.game.canPlayLocalMove(selected, [row, col], turn)) {
+                return;
+            }
             if (this.game.requiresPromotionMove(selected, [row, col])) {
                 this.pendingPromotion = { from: [...selected], to: [row, col], turn };
                 return;
@@ -233,6 +251,9 @@ export default {
             this.commitMove(selected, [row, col], turn, 'q');
         },
         commitMove(from, to, turn, promotion) {
+            if (!this.game.canPlayLocalMove(from, to, turn)) {
+                return;
+            }
             const ok = this.game.applyMove(from, to, promotion);
             if (!ok) {
                 return;
@@ -254,6 +275,10 @@ export default {
         confirmPromotion(type) {
             if (!this.pendingPromotion || !this.game) return;
             const { from, to, turn } = this.pendingPromotion;
+            if (!this.game.canPlayLocalMove(from, to, turn)) {
+                this.pendingPromotion = null;
+                return;
+            }
             this.pendingPromotion = null;
             this.commitMove(from, to, turn, type);
         },
@@ -262,10 +287,31 @@ export default {
 </script>
 
 <style>
-#chess { padding: 10px; }
-.chess-invite { margin-bottom: 10px; }
+#chess {
+    padding: 10px;
+    width: 100%;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+.chess-invite {
+    margin-bottom: 10px;
+    width: 100%;
+    max-width: 364px;
+    text-align: center;
+}
+.chess-game {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+}
 .chess-actions { display: flex; gap: 8px; margin-top: 8px; }
 .chess-result {
+    width: 100%;
+    max-width: 364px;
+    box-sizing: border-box;
     margin-bottom: 12px;
     border-radius: 10px;
     padding: 12px 14px;
@@ -291,8 +337,14 @@ export default {
     background: linear-gradient(135deg, rgba(52, 152, 219, 0.18), rgba(41, 128, 185, 0.08));
     border-color: #3498db;
 }
+.chess-result--interrupted {
+    background: linear-gradient(135deg, rgba(230, 168, 0, 0.18), rgba(230, 168, 0, 0.06));
+    border-color: #d4a017;
+}
 .chess-status {
-    margin-bottom: 12px;
+    width: 100%;
+    max-width: 364px;
+    box-sizing: border-box;
     font-weight: 700;
     display: flex;
     align-items: center;
@@ -353,32 +405,75 @@ export default {
 .chess-status--game-over {
     opacity: 0.8;
 }
-.chess-captured {
+.chess-play-area {
+    display: grid;
+    width: 100%;
+    max-width: 364px;
+    justify-content: center;
+    grid-template-columns: 1fr;
+    grid-template-areas:
+        "board"
+        "sidebar";
+    gap: 10px;
+}
+.chess-board-wrap {
+    grid-area: board;
+    justify-self: center;
+}
+.chess-sidebar {
+    grid-area: sidebar;
     display: flex;
-    align-items: center;
-    gap: 8px;
-    min-height: 28px;
-    margin: 4px 0;
-    font-size: 13px;
+    width: 100%;
+    align-items: stretch;
+    justify-content: center;
 }
-.chess-captured--opponent {
-    margin-bottom: 6px;
+.chess-sidebar__panel {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    width: 100%;
+    box-sizing: border-box;
 }
-.chess-captured--local {
-    margin-top: 6px;
+.chess-sidebar__panel--no-status {
+    justify-content: space-between;
 }
-.chess-captured__label {
-    font-weight: 600;
-    opacity: 0.75;
-    min-width: 90px;
-    flex-shrink: 0;
+.chess-player-block {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    text-align: left;
+    width: 100%;
+}
+.chess-player-block__nick {
+    font-weight: 800;
+    font-size: 1em;
+    line-height: 1.2;
+    word-break: break-word;
+    width: 100%;
+}
+.chess-player-block__hint {
+    font-size: 0.78em;
+    opacity: 0.7;
+    margin: 2px 0 6px;
+    width: 100%;
 }
 .chess-captured__pieces {
     display: flex;
     flex-wrap: wrap;
-    gap: 2px;
+    gap: 2px 4px;
     min-height: 24px;
     align-items: center;
+    justify-content: flex-start;
+    width: 100%;
+}
+.chess-status--sidebar {
+    margin: 0;
+    max-width: none;
+    width: 100%;
+    box-sizing: border-box;
+}
+.chess-status--sidebar .chess-status__badge {
+    margin-left: auto;
 }
 .chess-piece {
     display: inline-flex;
@@ -413,6 +508,8 @@ export default {
 }
 .chess-board-wrap {
     width: fit-content;
+    margin-left: auto;
+    margin-right: auto;
     border-radius: 4px;
     transition: box-shadow 0.2s;
 }
@@ -450,6 +547,15 @@ export default {
 }
 .chess-square--check {
     box-shadow: inset 0 0 0 4px rgba(231, 76, 60, 0.85);
+}
+.chess-square--last-from {
+    box-shadow: inset 0 0 0 999px rgba(187, 204, 68, 0.58);
+}
+.chess-square--last-to {
+    box-shadow: inset 0 0 0 999px rgba(187, 204, 68, 0.38);
+}
+.chess-square--last-from.chess-square--last-to {
+    box-shadow: inset 0 0 0 999px rgba(187, 204, 68, 0.5);
 }
 .chess-promo-overlay {
     position: fixed;
@@ -505,5 +611,87 @@ export default {
 @keyframes chess-board-glow {
     0%, 100% { box-shadow: 0 0 0 0 rgba(46, 204, 113, 0); }
     50% { box-shadow: 0 0 14px 4px rgba(46, 204, 113, 0.35); }
+}
+
+/* Desktop : colonne verticale — adversaire / bandeau / vous */
+@media (min-width: 520px) {
+    .chess-result {
+        max-width: 740px;
+    }
+    .chess-play-area {
+        grid-template-columns: auto auto;
+        grid-template-areas: "board sidebar";
+        column-gap: 14px;
+        row-gap: 0;
+        max-width: none;
+        width: auto;
+        align-items: stretch;
+    }
+    .chess-sidebar {
+        width: 320px;
+        align-self: stretch;
+    }
+    .chess-sidebar__panel {
+        display: grid;
+        grid-template-rows: 1fr auto 1fr;
+        align-items: stretch;
+        height: 100%;
+        width: 100%;
+        gap: 0;
+    }
+    .chess-player-block--opponent {
+        grid-row: 1;
+        align-self: start;
+    }
+    .chess-player-block--local {
+        grid-row: 3;
+        align-self: end;
+    }
+    .chess-status--sidebar {
+        grid-row: 2;
+        align-self: center;
+        justify-self: stretch;
+        width: 100%;
+        flex-direction: row;
+        flex-wrap: wrap;
+        align-items: center;
+        text-align: left;
+        padding: 10px 12px;
+        gap: 8px;
+    }
+    .chess-sidebar__panel--no-status {
+        grid-template-rows: 1fr 1fr;
+    }
+    .chess-sidebar__panel--no-status .chess-player-block--opponent {
+        grid-row: 1;
+        align-self: start;
+    }
+    .chess-sidebar__panel--no-status .chess-player-block--local {
+        grid-row: 2;
+        align-self: end;
+    }
+    .chess-status--sidebar .chess-status__badge {
+        margin-left: auto;
+        flex-shrink: 0;
+    }
+    .chess-status--sidebar .chess-status__text {
+        flex: 1 1 auto;
+        line-height: 1.3;
+        font-size: 0.95em;
+        min-width: 0;
+    }
+    .chess-board {
+        grid-template-columns: repeat(8, 52px);
+    }
+    .chess-square {
+        width: 52px;
+        height: 52px;
+    }
+    .chess-piece {
+        font-size: 40px;
+    }
+    .chess-piece--sm {
+        font-size: 24px;
+    }
 }
 </style>
