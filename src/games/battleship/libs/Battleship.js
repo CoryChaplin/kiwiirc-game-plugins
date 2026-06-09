@@ -61,6 +61,7 @@ export default class Battleship {
                     placementHorizontal: true,
                     activeShipIndex: 0,
                     firePending: false,
+                    lastLocalShotResult: null,
                 };
             },
         });
@@ -84,6 +85,7 @@ export default class Battleship {
         data.placementHorizontal = true;
         data.activeShipIndex = 0;
         data.firePending = false;
+        data.lastLocalShotResult = null;
         this.setPlacementMessage();
     }
 
@@ -223,15 +225,27 @@ export default class Battleship {
 
     markPendingShot(row, col) {
         this.data.firePending = true;
+        this.data.lastLocalShotResult = null;
         this.data.targetGrid[row][col].state = 'P';
         this.data.gameMessage = t('bs_shot_pending');
     }
 
+    setLastLocalShotResult(hit, sunk) {
+        if (sunk) {
+            this.data.lastLocalShotResult = 'sunk';
+        } else if (hit) {
+            this.data.lastLocalShotResult = 'hit';
+        } else {
+            this.data.lastLocalShotResult = 'miss';
+        }
+    }
+
+    getLastLocalShotResult() {
+        return this.data.lastLocalShotResult;
+    }
+
     clearFirePending() {
         this.data.firePending = false;
-        if (!this.data.gameOver && this.data.phase === 'battle') {
-            this.setTurnMessage();
-        }
     }
 
     getFirePending() {
@@ -267,14 +281,9 @@ export default class Battleship {
         return { valid: true, hit, sunk, sunkCells, allSunk };
     }
 
-    applyFireResult(row, col, hit, sunk, sunkCells) {
+    applyFireResult(row, col, hit) {
         const cell = this.data.targetGrid[row][col];
-        cell.state = hit ? (sunk ? 'S' : 'H') : 'M';
-        if (sunk && sunkCells) {
-            sunkCells.forEach(([r, c]) => {
-                this.data.targetGrid[r][c].state = 'S';
-            });
-        }
+        cell.state = hit ? 'H' : 'M';
     }
 
     getFleetCellsForReveal() {
@@ -320,6 +329,9 @@ export default class Battleship {
         if (this.data.phase === 'placement') {
             this.setPlacementMessage();
             return;
+        }
+        if (this.isMyTurn()) {
+            this.data.lastLocalShotResult = null;
         }
         this.data.gameMessage = this.isMyTurn()
             ? t('bs_your_turn')

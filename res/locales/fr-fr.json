@@ -84,6 +84,9 @@
     "bs_my_board": "Ma grille",
     "bs_enemy_board": "Grille ennemie",
     "bs_fire_here": "Tire ici",
+    "bs_badge_hit": "Touché",
+    "bs_badge_miss": "Ploof",
+    "bs_badge_sunk": "Coulé",
 
     "ch_usage": "Usage : /chess <pseudo>",
     "ch_cannot_invite_self": "Vous ne pouvez pas vous inviter vous-meme aux echecs.",

@@ -57,7 +57,11 @@
                 <div class="bs-board-panel" :class="{ 'bs-board-panel--active': isMyBattleTurn }">
                     <h4 class="bs-board-panel__title">
                         {{ $t('kiwi-games:bs_enemy_board') }}
-                        <span v-if="isMyBattleTurn" class="bs-board-panel__badge">{{ $t('kiwi-games:bs_fire_here') }}</span>
+                        <span
+                            v-if="enemyBoardBadge"
+                            class="bs-board-panel__badge"
+                            :class="enemyBoardBadgeClass"
+                        >{{ enemyBoardBadge }}</span>
                     </h4>
                     <div class="bs-grid" :class="{ 'bs-grid--fire': isMyBattleTurn }">
                         <button
@@ -108,6 +112,30 @@ export default {
                 && this.game.isMyTurn()
                 && !this.game.getFirePending()
             );
+        },
+        enemyBoardBadge() {
+            if (!this.game || this.game.getPhase() !== 'battle' || this.game.getGameOver()) {
+                return '';
+            }
+            if (this.isMyBattleTurn) {
+                return this.$t('kiwi-games:bs_fire_here');
+            }
+            const result = this.game.getLastLocalShotResult();
+            if (result === 'sunk') return this.$t('kiwi-games:bs_badge_sunk');
+            if (result === 'hit') return this.$t('kiwi-games:bs_badge_hit');
+            if (result === 'miss') return this.$t('kiwi-games:bs_badge_miss');
+            return '';
+        },
+        enemyBoardBadgeClass() {
+            if (!this.game || this.game.getPhase() !== 'battle' || this.isMyBattleTurn) {
+                return {};
+            }
+            const result = this.game.getLastLocalShotResult();
+            return {
+                'bs-board-panel__badge--hit': result === 'hit',
+                'bs-board-panel__badge--miss': result === 'miss',
+                'bs-board-panel__badge--sunk': result === 'sunk',
+            };
         },
         showTurnPulse() {
             return this.isMyBattleTurn;
@@ -313,6 +341,18 @@ export default {
     background: var(--brand-primary, #42b992);
     color: #fff;
     animation: bs-badge-blink 1.2s ease-in-out infinite;
+}
+.bs-board-panel__badge--hit {
+    background: #e74c3c;
+    animation: none;
+}
+.bs-board-panel__badge--miss {
+    background: #3498db;
+    animation: none;
+}
+.bs-board-panel__badge--sunk {
+    background: #922b21;
+    animation: none;
 }
 @keyframes bs-badge-blink {
     0%, 100% { opacity: 1; }

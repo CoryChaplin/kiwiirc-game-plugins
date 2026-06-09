@@ -160,7 +160,6 @@ export function init(kiwi, config) {
                 turn: data.turn,
                 hit: result.hit,
                 sunk: result.sunk,
-                sunkCells: result.sunkCells,
                 allSunk: result.allSunk,
                 fleetCells: result.allSunk ? game.getFleetCellsForReveal() : null,
             });
@@ -186,7 +185,8 @@ export function init(kiwi, config) {
                 break;
             }
             game.clearFirePending();
-            game.applyFireResult(data.row, data.col, data.hit, data.sunk, data.sunkCells);
+            game.applyFireResult(data.row, data.col, data.hit);
+            game.setLastLocalShotResult(data.hit, data.sunk);
             if (data.allSunk) {
                 game.applyFleetReveal(data.fleetCells);
                 game.setWinner(game.getLocalPlayer());

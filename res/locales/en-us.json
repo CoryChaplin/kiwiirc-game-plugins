@@ -84,6 +84,9 @@
     "bs_my_board": "My board",
     "bs_enemy_board": "Enemy board",
     "bs_fire_here": "Fire here",
+    "bs_badge_hit": "Hit",
+    "bs_badge_miss": "Ploof",
+    "bs_badge_sunk": "Sunk",
 
     "ch_usage": "Usage: /chess <nick>",
     "ch_cannot_invite_self": "You cannot invite yourself to play Chess.",

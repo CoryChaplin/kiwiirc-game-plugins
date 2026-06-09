@@ -73,6 +73,11 @@
                     </div>
                 </aside>
             </div>
+            <GameFeedback
+                :show="game.getGameOver()"
+                game-label="Chess"
+                :reset-key="feedbackResetKey"
+            />
             <div v-if="pendingPromotion" class="chess-promo-overlay">
                 <div class="chess-promo-box">
                     <div class="chess-promo-title">{{ $t('kiwi-games:ch_promotion_title') }}</div>
@@ -99,8 +104,10 @@
 <script>
 import * as Utils from '../libs/Utils.js';
 import { getPieceGlyph } from '../libs/pieceGlyphs.js';
+import GameFeedback from '../../shared/components/GameFeedback.vue';
 
 export default {
+    components: { GameFeedback },
     data() {
         return {
             pendingPromotion: null,
@@ -174,6 +181,10 @@ export default {
         },
         opponentNick() {
             return this.game ? this.game.getRemotePlayer() : '';
+        },
+        feedbackResetKey() {
+            if (!this.game) return '';
+            return `${this.game.getRemotePlayer()}:${this.game.getGameOver() ? '1' : '0'}`;
         },
     },
     methods: {
@@ -306,6 +317,11 @@ export default {
     flex-direction: column;
     align-items: center;
     width: 100%;
+}
+.chess-game > .game-feedback {
+    width: 100%;
+    max-width: 364px;
+    box-sizing: border-box;
 }
 .chess-actions { display: flex; gap: 8px; margin-top: 8px; }
 .chess-result {
@@ -615,7 +631,8 @@ export default {
 
 /* Desktop : colonne verticale — adversaire / bandeau / vous */
 @media (min-width: 520px) {
-    .chess-result {
+    .chess-result,
+    .chess-game > .game-feedback {
         max-width: 740px;
     }
     .chess-play-area {
