@@ -1,6 +1,13 @@
 <template>
     <div><div v-if="showButton">
-        <a :title="$t('kiwi-games:dropdown_title')" class="games-dropdown-button" @click="toggleDropdown">🎮</a>
+        <a
+            :title="$t('kiwi-games:dropdown_title')"
+            class="games-dropdown-button"
+            role="button"
+            tabindex="0"
+            @click="toggleDropdown"
+            @keydown.enter.space.prevent="toggleDropdown"
+        >🎮</a>
         <ul
             v-if="open"
             class="games-dropdown-menu"
@@ -138,6 +145,10 @@ export default {
 .games-dropdown-button {
     font-size: 20px;
     padding: 0 5px;
+    /* Safari (esp. iOS) only synthesises a click on "clickable" elements — this <a>
+       has no href, so without cursor:pointer a tap fires nothing and the menu never
+       opens. cursor:pointer (plus role/tabindex on the element) makes it interactive. */
+    cursor: pointer;
 }
 
 .games-dropdown-menu {
