@@ -1,16 +1,23 @@
-import { init as initTictactoe } from './games/tictactoe/index.js';
-import { init as initConnectFour } from './games/connectfour/index.js';
-import { init as initPictionary } from './games/pictionary/index.js';
-import { init as initBattleship } from './games/battleship/index.js';
-import { init as initChess } from './games/chess/index.js';
+/* global kiwi:true, require,
+    __KIWI_BUILD_GAME_TICTACTOE__,
+    __KIWI_BUILD_GAME_CONNECTFOUR__,
+    __KIWI_BUILD_GAME_PICTIONARY__,
+    __KIWI_BUILD_GAME_BATTLESHIP__,
+    __KIWI_BUILD_GAME_CHESS__
+*/
 import GamesDropdown from './games/shared/components/GamesDropdown.vue';
 import Locales, { getPluginBasePath } from './games/shared/locales.js';
+import { BUILD_GAMES } from './build-features.js';
 
 /**
- * Plugin Kiwi IRC unifié regroupant tous les jeux.
+ * Unified Kiwi IRC plugin bundling games selected at build time.
  *
- * Configuration (dans config.json de KiwiIRC) :
+ * Build (what ends up in the bundle) — build.config.json or CLI:
+ *   yarn build
+ *   yarn build --env exclude=chess,pictionary
+ *   yarn build --env config=./build.custom.json
  *
+ * Runtime (KiwiIRC config.json), among games already compiled in:
  *   "plugin_kiwi_games": {
  *     "tictactoe":   { "enabled": true, "button": true, "command": true },
  *     "connectfour": { "enabled": true, "button": true, "command": true },
@@ -29,47 +36,43 @@ import Locales, { getPluginBasePath } from './games/shared/locales.js';
 // plugin chargé plus tard.
 const defaultLocalesPath = getPluginBasePath() + 'kiwi-games/locales';
 
-// eslint-disable-next-line no-undef
+const gameInits = {};
+
+if (__KIWI_BUILD_GAME_TICTACTOE__) {
+    gameInits.tictactoe = require('./games/tictactoe/index.js').init;
+}
+if (__KIWI_BUILD_GAME_CONNECTFOUR__) {
+    gameInits.connectfour = require('./games/connectfour/index.js').init;
+}
+if (__KIWI_BUILD_GAME_PICTIONARY__) {
+    gameInits.pictionary = require('./games/pictionary/index.js').init;
+}
+if (__KIWI_BUILD_GAME_BATTLESHIP__) {
+    gameInits.battleship = require('./games/battleship/index.js').init;
+}
+if (__KIWI_BUILD_GAME_CHESS__) {
+    gameInits.chess = require('./games/chess/index.js').init;
+}
+
 kiwi.plugin('kiwi-games', function(kiwi) {
     const settings = (kiwi.state.settings && kiwi.state.settings['plugin_kiwi_games']) || {};
 
     const localesPath = settings.localesPath || defaultLocalesPath;
     new Locales().init(localesPath, 'kiwi-games', 'ttt_title');
 
-    const defaults = {
-        tictactoe:   { enabled: true, button: true, command: true },
-        connectfour: { enabled: true, button: true, command: true },
-        pictionary:  { enabled: true, button: true, command: true },
-        battleship:  { enabled: true, button: true, command: true },
-        chess:       { enabled: true, button: true, command: true },
-    };
+    const defaultGameCfg = { enabled: true, button: true, command: true };
+    let anyEnabled = false;
 
-    const cfg = {
-        tictactoe:   { ...defaults.tictactoe,   ...(settings.tictactoe   || {}) },
-        connectfour: { ...defaults.connectfour, ...(settings.connectfour || {}) },
-        pictionary:  { ...defaults.pictionary,  ...(settings.pictionary  || {}) },
-        battleship:  { ...defaults.battleship,  ...(settings.battleship  || {}) },
-        chess:       { ...defaults.chess,       ...(settings.chess       || {}) },
-    };
+    Object.keys(gameInits).forEach((id) => {
+        const cfg = { ...defaultGameCfg, ...(settings[id] || {}) };
+        if (!cfg.enabled) return;
+        gameInits[id](kiwi, cfg);
+        anyEnabled = true;
+    });
 
-    if (cfg.tictactoe.enabled) {
-        initTictactoe(kiwi, cfg.tictactoe);
-    }
-    if (cfg.connectfour.enabled) {
-        initConnectFour(kiwi, cfg.connectfour);
-    }
-    if (cfg.pictionary.enabled) {
-        initPictionary(kiwi, cfg.pictionary);
-    }
-    if (cfg.battleship.enabled) {
-        initBattleship(kiwi, cfg.battleship);
-    }
-    if (cfg.chess.enabled) {
-        initChess(kiwi, cfg.chess);
-    }
-
-    const anyEnabled = cfg.tictactoe.enabled || cfg.connectfour.enabled || cfg.pictionary.enabled || cfg.battleship.enabled || cfg.chess.enabled;
-    if (anyEnabled) {
+    // Safety net: if the build included no games, do not show the dropdown
+    const anyBuilt = Object.keys(BUILD_GAMES).some((id) => BUILD_GAMES[id]);
+    if (anyEnabled && anyBuilt) {
         kiwi.addUi('header_query', GamesDropdown);
     }
 });
