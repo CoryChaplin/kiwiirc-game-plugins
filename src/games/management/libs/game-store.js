@@ -1,0 +1,212 @@
+/* global kiwi:true */
+import { GAME_IDS } from './constants.js';
+import { t } from '../../shared/locales.js';
+
+function emptyGames() {
+    return GAME_IDS.map((id) => ({
+        id,
+        label: id,
+        minPlayers: 2,
+        maxPlayers: id === 'pictionary' ? 10 : 2,
+        queueCount: 0,
+        openLobbies: 0,
+    }));
+}
+
+function createInitialState() {
+    return {
+        loading: false,
+        error: '',
+        games: emptyGames(),
+        queues: {},
+        lobbiesOpen: [],
+        lobbiesReady: [],
+        meQueues: [],
+        meLobbies: [],
+        meAccount: '',
+        meNick: '',
+        expandedGame: '',
+        lastUpdated: 0,
+    };
+}
+
+function asObject(data) {
+    return data && typeof data === 'object' ? data : {};
+}
+
+function normalizePlayer(p) {
+    return {
+        account: String((p && p.account) || ''),
+        nick: String((p && p.nick) || (p && p.account) || ''),
+        joinedAt: String((p && p.joinedAt) || ''),
+    };
+}
+
+function normalizeLobby(l) {
+    return {
+        id: String((l && l.id) || ''),
+        game: String((l && l.game) || ''),
+        label: String((l && l.label) || (l && l.game) || ''),
+        maxPlayers: Number(l && l.maxPlayers) || 2,
+        status: String((l && l.status) || ''),
+        createdBy: String((l && l.createdBy) || ''),
+        createdAt: String((l && l.createdAt) || ''),
+        completedAt: l && l.completedAt == null ? null : String(l.completedAt),
+        players: Array.isArray(l && l.players) ? l.players.map(normalizePlayer) : [],
+    };
+}
+
+export class GameStore {
+    constructor(client) {
+        const initial = createInitialState();
+        this.state = kiwi.Vue && kiwi.Vue.observable
+            ? kiwi.Vue.observable(initial)
+            : initial;
+        this.client = client;
+        this.refreshSeq = 0;
+    }
+
+    setExpanded(gameId) {
+        this.state.expandedGame = this.state.expandedGame === gameId ? '' : gameId;
+    }
+
+    queueFor(gameId) {
+        return this.state.queues[gameId] || [];
+    }
+
+    openLobbiesFor(gameId) {
+        return this.state.lobbiesOpen.filter((l) => l.game === gameId);
+    }
+
+    isInQueue(gameId) {
+        return this.state.meQueues.includes(gameId);
+    }
+
+    isInLobby(lobbyId) {
+        return this.state.meLobbies.includes(lobbyId);
+    }
+
+    async refresh(network) {
+        const seq = ++this.refreshSeq;
+        this.state.loading = true;
+        this.state.error = '';
+
+        try {
+            const [stateRes, meRes] = await Promise.all([
+                this.client.request('state', {}, network),
+                this.client.request('me', {}, network).catch(() => null),
+            ]);
+
+            if (seq !== this.refreshSeq) return;
+
+            if (!stateRes.ok) {
+                this.state.error = stateRes.error || t('mgmt_err_load');
+                return;
+            }
+
+            this.applyState(asObject(stateRes.data));
+
+            if (meRes && meRes.ok) {
+                this.applyMe(asObject(meRes.data));
+            }
+
+            this.state.lastUpdated = Date.now();
+        } catch (err) {
+            if (seq !== this.refreshSeq) return;
+            this.state.error = err instanceof Error ? err.message : String(err);
+        } finally {
+            if (seq === this.refreshSeq) {
+                this.state.loading = false;
+            }
+        }
+    }
+
+    queueJoin(game, network) {
+        return this.mutate('queue.join', { game }, network);
+    }
+
+    queueLeave(game, network) {
+        return this.mutate('queue.leave', { game }, network);
+    }
+
+    lobbyCreate(game, maxPlayers, network) {
+        const fields = { game };
+        if (typeof maxPlayers === 'number') fields.maxPlayers = maxPlayers;
+        return this.mutate('lobby.create', fields, network);
+    }
+
+    lobbyJoin(lobby, network) {
+        return this.mutate('lobby.join', { lobby }, network);
+    }
+
+    lobbyLeave(lobby, network) {
+        return this.mutate('lobby.leave', { lobby }, network);
+    }
+
+    async mutate(op, fields, network) {
+        this.state.error = '';
+        this.state.loading = true;
+        try {
+            const res = await this.client.request(op, fields, network);
+            if (!res.ok) {
+                this.state.error = res.error || t('mgmt_err_op', { op });
+            }
+            await this.refresh(network);
+        } catch (err) {
+            this.state.error = err instanceof Error ? err.message : String(err);
+            this.state.loading = false;
+        }
+    }
+
+    applyState(data) {
+        if (Array.isArray(data.games) && data.games.length) {
+            this.state.games = data.games.map((g) => ({
+                id: String(g.id),
+                label: String(g.label || g.id),
+                minPlayers: Number(g.minPlayers) || 2,
+                maxPlayers: Number(g.maxPlayers) || 2,
+                queueCount: Number(g.queueCount) || 0,
+                openLobbies: Number(g.openLobbies) || 0,
+            }));
+        }
+
+        const queues = {};
+        if (data.queues && typeof data.queues === 'object') {
+            Object.keys(data.queues).forEach((gameId) => {
+                const list = data.queues[gameId];
+                queues[gameId] = Array.isArray(list) ? list.map(normalizePlayer) : [];
+            });
+        }
+        this.state.queues = queues;
+
+        this.state.lobbiesOpen = Array.isArray(data.lobbies && data.lobbies.open)
+            ? data.lobbies.open.map(normalizeLobby)
+            : [];
+        this.state.lobbiesReady = Array.isArray(data.lobbies && data.lobbies.ready)
+            ? data.lobbies.ready.map(normalizeLobby)
+            : [];
+    }
+
+    applyMe(data) {
+        this.state.meNick = typeof data.nick === 'string' ? data.nick : '';
+        this.state.meAccount = typeof data.account === 'string' ? data.account : '';
+        this.state.meQueues = Array.isArray(data.queues) ? data.queues.map(String) : [];
+        this.state.meLobbies = Array.isArray(data.lobbies)
+            ? data.lobbies.map((l) => String(l.id))
+            : [];
+    }
+}
+
+let storeInstance = null;
+
+export function initGameStore(client) {
+    storeInstance = new GameStore(client);
+    return storeInstance;
+}
+
+export function getGameStore() {
+    if (!storeInstance) {
+        throw new Error('GameStore not initialized');
+    }
+    return storeInstance;
+}

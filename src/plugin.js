@@ -3,25 +3,26 @@
     __KIWI_BUILD_GAME_CONNECTFOUR__,
     __KIWI_BUILD_GAME_PICTIONARY__,
     __KIWI_BUILD_GAME_BATTLESHIP__,
-    __KIWI_BUILD_GAME_CHESS__
+    __KIWI_BUILD_GAME_CHESS__,
+    __KIWI_BUILD_MANAGEMENT__
 */
 import GamesDropdown from './games/shared/components/GamesDropdown.vue';
 import Locales, { getPluginBasePath } from './games/shared/locales.js';
 import { BUILD_GAMES } from './build-features.js';
 
 /**
- * Unified Kiwi IRC plugin bundling games selected at build time.
+ * Unified Kiwi IRC plugin bundling games (and optional management) selected at build time.
  *
  * Build (what ends up in the bundle) — build.config.json or CLI:
  *   yarn build
  *   yarn build --env exclude=chess,pictionary
+ *   yarn build --env include=management
  *   yarn build --env config=./build.custom.json
  *
- * Runtime (KiwiIRC config.json), among games already compiled in:
+ * Runtime (KiwiIRC config.json), among modules already compiled in:
  *   "plugin_kiwi_games": {
  *     "tictactoe":   { "enabled": true, "button": true, "command": true },
- *     "connectfour": { "enabled": true, "button": true, "command": true },
- *     "pictionary":  { "enabled": true, "button": true, "command": true }
+ *     "management":  { "enabled": true, "button": true, "salon": "#jeux", "gameMasterNick": "gameMaster" }
  *   }
  *
  * Chaque clé de jeu accepte :
@@ -54,6 +55,11 @@ if (__KIWI_BUILD_GAME_CHESS__) {
     gameInits.chess = require('./games/chess/index.js').init;
 }
 
+let initManagement = null;
+if (__KIWI_BUILD_MANAGEMENT__) {
+    initManagement = require('./games/management/index.js').init;
+}
+
 kiwi.plugin('kiwi-games', function(kiwi) {
     const settings = (kiwi.state.settings && kiwi.state.settings['plugin_kiwi_games']) || {};
 
@@ -61,18 +67,32 @@ kiwi.plugin('kiwi-games', function(kiwi) {
     new Locales().init(localesPath, 'kiwi-games', 'ttt_title');
 
     const defaultGameCfg = { enabled: true, button: true, command: true };
-    let anyEnabled = false;
+    let anyGameEnabled = false;
 
     Object.keys(gameInits).forEach((id) => {
         const cfg = { ...defaultGameCfg, ...(settings[id] || {}) };
         if (!cfg.enabled) return;
         gameInits[id](kiwi, cfg);
-        anyEnabled = true;
+        anyGameEnabled = true;
     });
+
+    if (initManagement) {
+        const mgmtDefaults = {
+            enabled: true,
+            button: true,
+            salon: '#jeux',
+            gameMasterNick: 'gameMaster',
+            requestTimeoutMs: 15000,
+        };
+        const mgmtCfg = { ...mgmtDefaults, ...(settings.management || {}) };
+        if (mgmtCfg.enabled) {
+            initManagement(kiwi, mgmtCfg);
+        }
+    }
 
     // Safety net: if the build included no games, do not show the dropdown
     const anyBuilt = Object.keys(BUILD_GAMES).some((id) => BUILD_GAMES[id]);
-    if (anyEnabled && anyBuilt) {
+    if (anyGameEnabled && anyBuilt) {
         kiwi.addUi('header_query', GamesDropdown);
     }
 });

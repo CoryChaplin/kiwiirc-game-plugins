@@ -180,5 +180,27 @@
     "pict_wrong_guess": "That’s not it — try again.",
     "pict_final_scores": "Final scores (words found)",
     "pict_player": "Player",
-    "pict_score": "Score"
+    "pict_score": "Score",
+
+    "mgmt_button_title": "Games — queues and lobbies",
+    "mgmt_title": "Games",
+    "mgmt_refresh": "Refresh",
+    "mgmt_nickserv_required": "Identify with NickServ to join a queue or lobby.",
+    "mgmt_loading": "Loading…",
+    "mgmt_queue_title": "Queue",
+    "mgmt_queue_empty": "Nobody in queue",
+    "mgmt_lobbies_title": "Lobbies",
+    "mgmt_lobbies_open": "Open lobbies",
+    "mgmt_lobbies_empty": "No open lobby",
+    "mgmt_join": "Join",
+    "mgmt_leave": "Leave",
+    "mgmt_invite": "Invite",
+    "mgmt_create": "Create",
+    "mgmt_max": "Max",
+    "mgmt_err_no_network": "No IRC network available",
+    "mgmt_err_timeout": "gameMaster timeout ({{op}})",
+    "mgmt_err_tagmsg": "TAGMSG not supported by the IRC client",
+    "mgmt_err_chunk": "Invalid chunked response",
+    "mgmt_err_load": "Failed to load",
+    "mgmt_err_op": "Failed {{op}}"
 }

@@ -1,10 +1,11 @@
 {
-  "_comment": "Games included in the bundle. false = excluded from the build. CLI override: yarn build --env exclude=chess,pictionary  |  yarn build --env config=./build.custom.json",
+  "_comment": "Games: false = excluded from build. management: opt-in (false by default). CLI: yarn build --env exclude=chess | yarn build --env include=management | yarn build --env config=./build.custom.json",
   "games": {
     "tictactoe": true,
     "connectfour": true,
     "pictionary": true,
     "battleship": true,
     "chess": true
-  }
+  },
+  "management": false
 }

@@ -180,5 +180,27 @@
     "pict_wrong_guess": "Ce n'est pas ça — réessaie.",
     "pict_final_scores": "Scores finaux (mots trouvés)",
     "pict_player": "Joueur",
-    "pict_score": "Score"
+    "pict_score": "Score",
+
+    "mgmt_button_title": "Jeux — files d'attente et lobbies",
+    "mgmt_title": "Jeux",
+    "mgmt_refresh": "Actualiser",
+    "mgmt_nickserv_required": "Identifiez-vous auprès de NickServ pour rejoindre une file ou un lobby.",
+    "mgmt_loading": "Chargement…",
+    "mgmt_queue_title": "File d'attente",
+    "mgmt_queue_empty": "Personne en file",
+    "mgmt_lobbies_title": "Lobbies",
+    "mgmt_lobbies_open": "Lobbies ouverts",
+    "mgmt_lobbies_empty": "Aucun lobby ouvert",
+    "mgmt_join": "Rejoindre",
+    "mgmt_leave": "Quitter",
+    "mgmt_invite": "Inviter",
+    "mgmt_create": "Créer",
+    "mgmt_max": "Max",
+    "mgmt_err_no_network": "Aucun réseau IRC disponible",
+    "mgmt_err_timeout": "Timeout gameMaster ({{op}})",
+    "mgmt_err_tagmsg": "TAGMSG non supporté par le client IRC",
+    "mgmt_err_chunk": "Réponse chunkée invalide",
+    "mgmt_err_load": "Échec du chargement",
+    "mgmt_err_op": "Échec {{op}}"
 }
