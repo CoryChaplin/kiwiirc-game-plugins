@@ -34,6 +34,7 @@
 <script>
 
 import * as Utils from '../libs/Utils.js';
+import { completeGame } from '../../shared/reportGameResult.js';
 
 export default {
     computed: {
@@ -62,7 +63,13 @@ export default {
                 game.incrementGameTurn();
                 game.checkGame();
                 // eslint-disable-next-line no-undef
-                if (game.getGameOver()) kiwi.emit('plugin-kiwi-games.game-completed', { game: 'tictactoe' });
+                if (game.getGameOver()) {
+                    completeGame(buffer.getNetwork(), {
+                        game: 'tictactoe',
+                        players: [game.getLocalPlayer(), game.getRemotePlayer()],
+                        winner: game.getGameDraw() ? null : (game.getGameWinner() || null),
+                    });
+                }
                 if (!game.getGameOver() && !game.isMyTurn()) {
                     game.setTurnMessage();
                 }

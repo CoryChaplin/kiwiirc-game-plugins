@@ -41,7 +41,7 @@ The client only accepts responses whose `nick` matches `gameMasterNick` (IRC cas
 ```json
 {
   "id": "<uuid>",
-  "op": "state | me | queue.join | queue.leave | lobby.create | lobby.join | lobby.leave",
+  "op": "state | me | queue.join | queue.leave | lobby.create | lobby.join | lobby.leave | scores",
   "game": "<gameId>",
   "lobby": "<lobbyId>",
   "maxPlayers": 4
@@ -52,7 +52,7 @@ The client only accepts responses whose `nick` matches `gameMasterNick` (IRC cas
 |---|---|
 | `id` | Always — correlation id for the response |
 | `op` | Always |
-| `game` | `queue.*`, `lobby.create` |
+| `game` | `queue.*`, `lobby.create`, `scores` |
 | `lobby` | `lobby.join`, `lobby.leave` |
 | `maxPlayers` | Optional on `lobby.create` (e.g. Pictionary) |
 
@@ -69,6 +69,7 @@ Known `game` ids: `pictionary`, `connectfour`, `tictactoe`, `chess`, `battleship
 | `lobby.create` | Create an open lobby for `game` |
 | `lobby.join` | Join lobby `lobby` |
 | `lobby.leave` | Leave lobby `lobby` |
+| `scores` | Leaderboard for `game` (top entries + requester `me`) |
 
 Joining a queue or lobby should require a NickServ `account` (the UI disables actions when the user is not identified).
 
@@ -163,6 +164,21 @@ If the payload is too large for one TAGMSG, send several envelopes with the **sa
 
 (`lobbies` may be full lobby objects; the client only needs each `id`.)
 
+### `scores`
+
+```json
+{
+  "game": "chess",
+  "label": "Échecs",
+  "top": [
+    { "rank": 1, "account": "hery", "wins": 10, "draws": 2, "losses": 2, "games": 14, "ratio": 83 }
+  ],
+  "me": { "rank": 27, "account": "alice", "wins": 2, "draws": 1, "losses": 6, "games": 9, "ratio": 25 }
+}
+```
+
+The UI shows the first 5 entries of `top`. If `me` is already among those five, it is highlighted in place and not repeated below.
+
 ## What the bot must listen for / send
 
 1. **Listen** for `TAGMSG` aimed at the bot with tag `+gm`.
@@ -173,3 +189,24 @@ If the payload is too large for one TAGMSG, send several envelopes with the **sa
 6. **Broadcast** a `TAGMSG` with `+gm` to the configured salon channel (e.g. `#jeux`) whenever queues or lobbies change, so other clients refresh automatically. Payload can be minimal (any `+gm` value is enough); clients debounce and then re-fetch `state` + `me`.
 
 Peer-to-peer game invites (`/<game> <nick>`) are handled by the game plugins themselves, not by this bot protocol.
+
+## Game results (client → salon)
+
+When a match finishes normally and management is active with a configured `salon`, each participant may broadcast:
+
+```
+TAGMSG #jeux +gm=<base64url(JSON)>
+```
+
+```json
+{
+  "op": "game.result",
+  "game": "chess",
+  "players": ["Alice", "Bob"],
+  "winner": "Alice"
+}
+```
+
+- `winner` is `null` for a draw (or a Pictionary score tie).
+- Interrupted / terminated games do not send `game.result`.
+- Every participant may broadcast the same result; the bot must deduplicate and validate NickServ accounts.

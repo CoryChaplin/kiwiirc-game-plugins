@@ -186,6 +186,25 @@
 import * as Utils from '../libs/Utils.js';
 import { floodFillImageData, hexToRgb } from '../libs/canvasFloodFill.js';
 import GameFeedback from '../../shared/components/GameFeedback.vue';
+import { completeGame } from '../../shared/reportGameResult.js';
+
+function pictionaryWinner(game) {
+  const scores = game.getScoresByNick() || {};
+  const players = (game.getParticipants && game.getParticipants()) || Object.keys(scores);
+  let best = -Infinity;
+  const winners = [];
+  players.forEach((nick) => {
+    const score = typeof scores[nick] === 'number' ? scores[nick] : 0;
+    if (score > best) {
+      best = score;
+      winners.length = 0;
+      winners.push(nick);
+    } else if (score === best) {
+      winners.push(nick);
+    }
+  });
+  return winners.length === 1 ? winners[0] : null;
+}
 
 export default {
   components: { GameFeedback },
@@ -714,7 +733,13 @@ export default {
       if (!payload) return;
       game.applyNextTurnPayload(payload);
       if (payload.finished && game.getGameOver()) {
-        kiwi.emit('plugin-kiwi-games.game-completed', { game: 'pictionary' });
+        const scores = game.getScoresByNick() || {};
+        const players = (game.getParticipants && game.getParticipants()) || Object.keys(scores);
+        completeGame(network, {
+          game: 'pictionary',
+          players: players.slice(),
+          winner: pictionaryWinner(game),
+        });
       }
       if (game.getShowGame() && !game.getGameOver()) {
         kiwi.state.addMessage(buffer, {

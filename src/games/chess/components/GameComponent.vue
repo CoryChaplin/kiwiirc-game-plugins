@@ -105,6 +105,7 @@
 import * as Utils from '../libs/Utils.js';
 import { getPieceGlyph } from '../libs/pieceGlyphs.js';
 import GameFeedback from '../../shared/components/GameFeedback.vue';
+import { completeGame } from '../../shared/reportGameResult.js';
 
 export default {
     components: { GameFeedback },
@@ -280,7 +281,11 @@ export default {
             });
             if (this.game.getGameOver()) {
                 // eslint-disable-next-line no-undef
-                kiwi.emit('plugin-kiwi-games.game-completed', { game: 'chess' });
+                completeGame(network, {
+                    game: 'chess',
+                    players: [this.game.getLocalPlayer(), this.game.getRemotePlayer()],
+                    winner: this.game.getGameDraw() ? null : (this.game.getGameWinner() || null),
+                });
             }
         },
         confirmPromotion(type) {

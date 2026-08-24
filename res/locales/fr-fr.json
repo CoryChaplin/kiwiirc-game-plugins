@@ -202,5 +202,9 @@
     "mgmt_err_tagmsg": "TAGMSG non supporté par le client IRC",
     "mgmt_err_chunk": "Réponse chunkée invalide",
     "mgmt_err_load": "Échec du chargement",
-    "mgmt_err_op": "Échec {{op}}"
+    "mgmt_err_op": "Échec {{op}}",
+    "mgmt_scores_title": "Classement",
+    "mgmt_scores_empty": "Aucun score pour ce jeu",
+    "mgmt_scores_stats": "{{wins}} victoires · {{draws}} nuls · {{losses}} défaites · {{games}} parties",
+    "mgmt_err_scores": "Échec du chargement du classement"
 }

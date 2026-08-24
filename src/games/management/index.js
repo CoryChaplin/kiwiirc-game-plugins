@@ -2,6 +2,7 @@ import { setConfig } from './libs/config.js';
 import { defaultConfig } from './libs/constants.js';
 import { GmClient } from './libs/gm-client.js';
 import { initGameStore } from './libs/game-store.js';
+import { activateManagementSalon } from '../shared/reportGameResult.js';
 import HeaderGamesButton from './components/HeaderGamesButton.vue';
 
 /**
@@ -11,6 +12,7 @@ import HeaderGamesButton from './components/HeaderGamesButton.vue';
 export function init(kiwi, config) {
     const cfg = { ...defaultConfig, ...config };
     setConfig(cfg);
+    activateManagementSalon(cfg.salon);
 
     const client = new GmClient();
     client.bind();

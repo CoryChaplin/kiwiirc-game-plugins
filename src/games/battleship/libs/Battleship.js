@@ -315,6 +315,10 @@ export default class Battleship {
         return this.data.gameOver && this.data.gameWinner === this.data.localPlayer;
     }
 
+    getGameWinner() {
+        return this.data.gameWinner;
+    }
+
     setPlacementMessage() {
         const remaining = this.data.shipsToPlace.length - this.data.activeShipIndex;
         if (remaining <= 0) {

@@ -26,7 +26,32 @@ function createInitialState() {
         meAccount: '',
         meNick: '',
         expandedGame: '',
+        scoresOpenGame: '',
+        scoresByGame: {},
         lastUpdated: 0,
+    };
+}
+
+function normalizeScoreEntry(entry) {
+    return {
+        rank: Number(entry && entry.rank) || 0,
+        account: String((entry && entry.account) || ''),
+        wins: Number(entry && entry.wins) || 0,
+        draws: Number(entry && entry.draws) || 0,
+        losses: Number(entry && entry.losses) || 0,
+        games: Number(entry && entry.games) || 0,
+        ratio: Number(entry && entry.ratio) || 0,
+    };
+}
+
+function emptyScoresState() {
+    return {
+        loading: false,
+        error: '',
+        label: '',
+        top: [],
+        me: null,
+        fetchedAt: 0,
     };
 }
 
@@ -68,6 +93,80 @@ export class GameStore {
 
     setExpanded(gameId) {
         this.state.expandedGame = this.state.expandedGame === gameId ? '' : gameId;
+    }
+
+    scoresFor(gameId) {
+        return this.state.scoresByGame[gameId] || emptyScoresState();
+    }
+
+    isScoresOpen(gameId) {
+        return this.state.scoresOpenGame === gameId;
+    }
+
+    async toggleScores(gameId, network) {
+        if (this.state.scoresOpenGame === gameId) {
+            this.state.scoresOpenGame = '';
+            return;
+        }
+        this.state.scoresOpenGame = gameId;
+        await this.fetchScores(gameId, network);
+    }
+
+    async fetchScores(gameId, network) {
+        if (!gameId) return;
+
+        const prev = this.scoresFor(gameId);
+        this.state.scoresByGame = {
+            ...this.state.scoresByGame,
+            [gameId]: {
+                ...prev,
+                loading: true,
+                error: '',
+            },
+        };
+
+        try {
+            const res = await this.client.request('scores', { game: gameId }, network);
+            if (!res.ok) {
+                this.state.scoresByGame = {
+                    ...this.state.scoresByGame,
+                    [gameId]: {
+                        ...this.scoresFor(gameId),
+                        loading: false,
+                        error: res.error || t('mgmt_err_scores'),
+                    },
+                };
+                return;
+            }
+
+            const data = asObject(res.data);
+            const topRaw = Array.isArray(data.top) ? data.top : [];
+            const top = topRaw.slice(0, 5).map(normalizeScoreEntry);
+            const me = data.me && typeof data.me === 'object'
+                ? normalizeScoreEntry(data.me)
+                : null;
+
+            this.state.scoresByGame = {
+                ...this.state.scoresByGame,
+                [gameId]: {
+                    loading: false,
+                    error: '',
+                    label: String(data.label || data.game || gameId),
+                    top,
+                    me,
+                    fetchedAt: Date.now(),
+                },
+            };
+        } catch (err) {
+            this.state.scoresByGame = {
+                ...this.state.scoresByGame,
+                [gameId]: {
+                    ...this.scoresFor(gameId),
+                    loading: false,
+                    error: err instanceof Error ? err.message : String(err),
+                },
+            };
+        }
     }
 
     queueFor(gameId) {
