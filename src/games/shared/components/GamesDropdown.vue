@@ -28,6 +28,7 @@
 <script>
 /* global kiwi:true */
 import { BUILD_GAMES } from '../../../build-features.js';
+import { getGameConfig, getPluginSettings } from '../pluginConfig.js';
 
 const tttSvg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">'
     + '<line x1="8" y1="2" x2="8" y2="22"/><line x1="16" y1="2" x2="16" y2="22"/>'
@@ -93,12 +94,12 @@ export default {
             return true;
         },
         enabledGames() {
-            const settings = (kiwi.state.settings && kiwi.state.settings['plugin_kiwi_games']) || {};
+            const settings = getPluginSettings();
             return GAME_DEFS
                 .filter(({ id }) => {
                     if (!BUILD_GAMES[id]) return false;
-                    const cfg = settings[id] || {};
-                    return cfg.enabled !== false && cfg.button !== false;
+                    const cfg = getGameConfig(id, settings);
+                    return cfg.enabled && cfg.button;
                 })
                 .map(({ id, labelKey, icon }) => ({
                     id,

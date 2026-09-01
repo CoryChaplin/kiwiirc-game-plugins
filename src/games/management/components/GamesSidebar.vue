@@ -113,7 +113,7 @@
                                 v-if="!inQueue(game.id)"
                                 type="button"
                                 class="kiwi-gm-btn"
-                                :disabled="!identified || state.loading"
+                                :disabled="state.loading"
                                 @click="joinQueue(game.id)"
                             >{{ $t('kiwi-games:mgmt_join') }}</button>
                             <button
@@ -159,7 +159,7 @@
                                 <button
                                     type="button"
                                     class="kiwi-gm-btn"
-                                    :disabled="!identified || state.loading"
+                                    :disabled="state.loading"
                                     @click="createLobby(game.id)"
                                 >{{ $t('kiwi-games:mgmt_create') }}</button>
                             </div>
@@ -174,24 +174,48 @@
                                 <div class="kiwi-gm-lobby-info">
                                     <strong>#{{ lobby.id }}</strong>
                                     <span>{{ lobby.players.length }}/{{ lobby.maxPlayers }}</span>
-                                    <span class="kiwi-gm-lobby-players">{{ playerNicks(lobby) }}</span>
+                                    <span
+                                        v-if="isLobbyReady(lobby)"
+                                        class="kiwi-gm-badge"
+                                    >{{ $t('kiwi-games:mgmt_ready') }}</span>
+                                    <span class="kiwi-gm-lobby-players">
+                                        <span
+                                            v-for="p in lobby.players"
+                                            :key="(p.nick || p.account) + p.joinedAt"
+                                            class="kiwi-gm-lobby-player"
+                                        >
+                                            <span class="kiwi-gm-lobby-player-name">{{ p.nick || p.account }}</span>
+                                            <button
+                                                v-if="canKick(lobby, p)"
+                                                type="button"
+                                                class="kiwi-gm-kick"
+                                                :disabled="state.loading"
+                                                :title="$t('kiwi-games:mgmt_kick')"
+                                                @click="kickPlayer(lobby, p)"
+                                            >×</button>
+                                        </span>
+                                    </span>
                                 </div>
                                 <div class="kiwi-gm-lobby-actions">
                                     <button
-                                        v-if="!inLobby(lobby.id)"
+                                        v-if="!inLobby(lobby.id) && !isLobbyReady(lobby)"
                                         type="button"
                                         class="kiwi-gm-btn kiwi-gm-btn--small"
-                                        :disabled="!identified || state.loading || isLobbyFull(lobby)"
+                                        :disabled="state.loading || isLobbyFull(lobby)"
                                         @click="joinLobby(lobby.id)"
                                     >{{ $t('kiwi-games:mgmt_join') }}</button>
-                                    <template v-else>
+                                    <template v-else-if="inLobby(lobby.id)">
                                         <button
-                                            v-if="isLobbyFull(lobby)"
+                                            v-if="canLaunch(lobby)"
                                             type="button"
                                             class="kiwi-gm-btn kiwi-gm-btn--small"
                                             :disabled="state.loading"
-                                            @click="inviteLobby(game.id, lobby)"
-                                        >{{ $t('kiwi-games:mgmt_invite') }}</button>
+                                            @click="launchLobby(game.id, lobby)"
+                                        >{{ $t('kiwi-games:mgmt_launch') }}</button>
+                                        <span
+                                            v-else-if="isLobbyFull(lobby) || isLobbyReady(lobby)"
+                                            class="kiwi-gm-waiting"
+                                        >{{ $t('kiwi-games:mgmt_waiting_launch') }}</span>
                                         <button
                                             type="button"
                                             class="kiwi-gm-btn kiwi-gm-btn--small kiwi-gm-btn--danger"
@@ -213,7 +237,7 @@
 <script>
 /* global kiwi:true */
 import { getGameStore } from '../libs/game-store.js';
-import { isIdentified } from '../libs/network.js';
+import { isIdentified, nicksMatch } from '../libs/network.js';
 
 export default {
     props: {
@@ -294,7 +318,7 @@ export default {
             return this.store.queueFor(gameId);
         },
         lobbiesFor(gameId) {
-            return this.store.openLobbiesFor(gameId);
+            return this.store.lobbiesFor(gameId);
         },
         inQueue(gameId) {
             return this.store.isInQueue(gameId);
@@ -309,16 +333,24 @@ export default {
             }
             const myNick = (this.network && this.network.nick) || this.state.meNick;
             const theirNick = player.nick || player.account;
-            if (!myNick || !theirNick) return false;
             const irc = this.network && this.network.ircClient;
-            if (irc && typeof irc.caseCompare === 'function') {
-                try {
-                    return irc.caseCompare(myNick, theirNick);
-                } catch (_) {
-                    // fall through
-                }
-            }
-            return myNick.toLowerCase() === String(theirNick).toLowerCase();
+            return nicksMatch(myNick, theirNick, irc);
+        },
+        isCreator(lobby) {
+            const myNick = (this.network && this.network.nick) || this.state.meNick;
+            const irc = this.network && this.network.ircClient;
+            return nicksMatch(lobby && lobby.createdBy, myNick, irc);
+        },
+        isLobbyReady(lobby) {
+            return Boolean(lobby && lobby.status === 'ready');
+        },
+        canKick(lobby, player) {
+            if (!lobby || !player) return false;
+            if (!this.isCreator(lobby) || this.isSelf(player)) return false;
+            return Boolean((player.nick || player.account || '').trim());
+        },
+        canLaunch(lobby) {
+            return this.isLobbyFull(lobby) && this.isCreator(lobby) && this.inLobby(lobby.id);
         },
         invitePlayer(gameId, nick) {
             const network = this.network;
@@ -334,19 +366,47 @@ export default {
             const count = (lobby && lobby.players && lobby.players.length) || 0;
             return max > 0 && count >= max;
         },
-        inviteLobby(gameId, lobby) {
+        parseLaunchCommand(cmd) {
+            if (!cmd || typeof cmd !== 'string') return null;
+            const cleaned = cmd.replace(/^\//, '').trim();
+            const parts = cleaned.split(/\s+/).filter(Boolean);
+            if (parts.length < 2) return null;
+            return { game: parts[0], nicks: parts.slice(1) };
+        },
+        runLaunchCommand(gameId, lobby) {
             const network = this.network;
             const buffer = this.buffer;
             if (!network || !buffer || !lobby) return;
-            const nicks = (lobby.players || [])
-                .filter((p) => !this.isSelf(p))
-                .map((p) => (p.nick || p.account || '').trim())
-                .filter(Boolean);
+
+            const parsed = this.parseLaunchCommand(lobby.launchCommand);
+            const game = (parsed && parsed.game) || gameId;
+            const nicks = parsed && parsed.nicks.length
+                ? parsed.nicks.slice()
+                : (lobby.players || [])
+                    .filter((p) => !this.isSelf(p))
+                    .map((p) => (p.nick || p.account || '').trim())
+                    .filter(Boolean);
             if (!nicks.length) return;
+
             const paramsArg = nicks.join(' ');
             const evt = { handled: false, params: nicks.slice() };
             const ctx = { network, buffer };
-            kiwi.emit(`input.command.${gameId}`, evt, gameId, paramsArg, ctx);
+            kiwi.emit(`input.command.${game}`, evt, game, paramsArg, ctx);
+        },
+        kickPlayer(lobby, player) {
+            const nick = ((player && player.nick) || (player && player.account) || '').trim();
+            if (!lobby || !nick) return;
+            return this.store.lobbyKick(lobby.id, nick, this.network);
+        },
+        async launchLobby(gameId, lobby) {
+            if (!lobby) return;
+            const snapshot = {
+                launchCommand: lobby.launchCommand,
+                players: (lobby.players || []).slice(),
+            };
+            const ok = await this.store.lobbyLaunch(lobby.id, this.network);
+            if (!ok) return;
+            this.runLaunchCommand(gameId, snapshot);
         },
         joinQueue(gameId) {
             return this.store.queueJoin(gameId, this.network);
@@ -363,10 +423,6 @@ export default {
         },
         leaveLobby(lobbyId) {
             return this.store.lobbyLeave(lobbyId, this.network);
-        },
-        playerNicks(lobby) {
-            const list = (lobby.players || []).map((p) => p.nick || p.account).join(', ');
-            return list || '—';
         },
         close() {
             if (this.sidebarState && typeof this.sidebarState.close === 'function') {
@@ -641,6 +697,14 @@ export default {
     border-top: 0;
 }
 
+.kiwi-gm-lobby-info {
+    min-width: 0;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.35em 0.55em;
+}
+
 .kiwi-gm-lobby-actions {
     display: flex;
     flex-direction: column;
@@ -651,8 +715,69 @@ export default {
 
 .kiwi-gm-lobby-players {
     font-size: 0.88em;
-    opacity: 0.8;
-    word-break: break-word;
+    opacity: 0.9;
+    flex-basis: 100%;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.2em 0.55em;
+}
+
+.kiwi-gm-lobby-player {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.1em;
+    max-width: 100%;
+}
+
+.kiwi-gm-lobby-player-name {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.kiwi-gm-kick {
+    appearance: none;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    opacity: 0.4;
+    cursor: pointer;
+    padding: 0 0.12em;
+    margin: 0;
+    font: inherit;
+    font-size: 1.05em;
+    line-height: 1;
+    border-radius: 2px;
+}
+
+.kiwi-gm-kick:hover:not(:disabled) {
+    opacity: 1;
+    color: #c0392b;
+}
+
+.kiwi-gm-kick:disabled {
+    opacity: 0.2;
+    cursor: not-allowed;
+}
+
+.kiwi-gm-badge {
+    font-size: 0.72em;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    padding: 0.1em 0.4em;
+    border-radius: 3px;
+    background: rgba(40, 140, 70, 0.18);
+    border: 1px solid rgba(40, 140, 70, 0.4);
+}
+
+.kiwi-gm-waiting {
+    font-size: 0.78em;
+    opacity: 0.7;
+    font-style: italic;
+    max-width: 8.5em;
+    line-height: 1.25;
 }
 
 .kiwi-gm-empty {

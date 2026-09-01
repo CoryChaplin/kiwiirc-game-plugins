@@ -9,6 +9,7 @@
 import GamesDropdown from './games/shared/components/GamesDropdown.vue';
 import Locales, { getPluginBasePath } from './games/shared/locales.js';
 import { BUILD_GAMES } from './build-features.js';
+import { coerceBool, getGameConfig, getPluginSettings } from './games/shared/pluginConfig.js';
 
 /**
  * Unified Kiwi IRC plugin bundling games (and optional management) selected at build time.
@@ -24,6 +25,7 @@ import { BUILD_GAMES } from './build-features.js';
  *     "tictactoe":   { "enabled": true, "button": true, "command": true },
  *     "management":  { "enabled": true, "button": true, "salon": "#jeux", "gameMasterNick": "gameMaster" }
  *   }
+ * Also accepted (Kiwi convention = plugin name): "kiwi-games": { ... }
  *
  * Chaque clé de jeu accepte :
  *   - enabled (bool) : active ou désactive le jeu (défaut : true)
@@ -61,16 +63,15 @@ if (__KIWI_BUILD_MANAGEMENT__) {
 }
 
 kiwi.plugin('kiwi-games', function(kiwi) {
-    const settings = (kiwi.state.settings && kiwi.state.settings['plugin_kiwi_games']) || {};
+    const settings = getPluginSettings();
 
     const localesPath = settings.localesPath || defaultLocalesPath;
     new Locales().init(localesPath, 'kiwi-games', 'ttt_title');
 
-    const defaultGameCfg = { enabled: true, button: true, command: true };
     let anyGameEnabled = false;
 
     Object.keys(gameInits).forEach((id) => {
-        const cfg = { ...defaultGameCfg, ...(settings[id] || {}) };
+        const cfg = getGameConfig(id, settings);
         if (!cfg.enabled) return;
         gameInits[id](kiwi, cfg);
         anyGameEnabled = true;
@@ -84,7 +85,14 @@ kiwi.plugin('kiwi-games', function(kiwi) {
             gameMasterNick: 'gameMaster',
             requestTimeoutMs: 15000,
         };
-        const mgmtCfg = { ...mgmtDefaults, ...(settings.management || {}) };
+        const mgmtRaw = settings.management;
+        const mgmtCfg = {
+            ...mgmtDefaults,
+            ...(mgmtRaw && typeof mgmtRaw === 'object' ? mgmtRaw : {}),
+        };
+        mgmtCfg.enabled = coerceBool(mgmtCfg.enabled, true);
+        mgmtCfg.button = coerceBool(mgmtCfg.button, true);
+        if (mgmtRaw === false) mgmtCfg.enabled = false;
         if (mgmtCfg.enabled) {
             initManagement(kiwi, mgmtCfg);
         }

@@ -20,6 +20,9 @@ export function init(kiwi, config) {
     client.setSalonUpdateHandler((network) => {
         store.refresh(network);
     });
+    client.setPushHandler((payload, network) => {
+        store.handlePush(payload, network);
+    });
 
     if (cfg.button !== false && typeof kiwi.addUi === 'function') {
         kiwi.addUi('header_channel', HeaderGamesButton);

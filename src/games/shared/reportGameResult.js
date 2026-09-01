@@ -1,5 +1,6 @@
 /* global kiwi:true */
 import { encodeJsonBase64Url } from './base64url.js';
+import { coerceBool, getPluginSettings } from './pluginConfig.js';
 
 const GM_TAG = '+gm';
 
@@ -16,9 +17,9 @@ export function activateManagementSalon(salon) {
  */
 export function getManagementSalon() {
     if (activeManagementSalon) return activeManagementSalon;
-    const settings = (kiwi.state.settings && kiwi.state.settings.plugin_kiwi_games) || {};
+    const settings = getPluginSettings();
     const mgmt = settings.management || {};
-    if (mgmt.enabled === false) return '';
+    if (coerceBool(mgmt.enabled, true) === false) return '';
     return typeof mgmt.salon === 'string' ? mgmt.salon.trim() : '';
 }
 

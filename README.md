@@ -73,7 +73,8 @@ $ yarn watch    # Webpack watch mode
 
 #### Configuration
 
-Configuration is set in the KiwiIRC `config.json` file under the `plugin_kiwi_games` key.
+Configuration is set in the KiwiIRC `config.json` file under the `plugin_kiwi_games` key
+(the key `kiwi-games` — matching the plugin name — is also accepted).
 All settings are optional — defaults are applied for any omitted key.
 
 ```json

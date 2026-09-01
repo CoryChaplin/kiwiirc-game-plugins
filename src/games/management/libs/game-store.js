@@ -1,9 +1,12 @@
 /* global kiwi:true */
 import { GAME_IDS } from './constants.js';
+import { getConfig } from './config.js';
+import { addChannelSystemMessage } from './network.js';
 import { t } from '../../shared/locales.js';
+import { isGameEnabled } from '../../shared/pluginConfig.js';
 
 function emptyGames() {
-    return GAME_IDS.map((id) => ({
+    return GAME_IDS.filter((id) => isGameEnabled(id)).map((id) => ({
         id,
         label: id,
         minPlayers: 2,
@@ -77,8 +80,20 @@ function normalizeLobby(l) {
         createdBy: String((l && l.createdBy) || ''),
         createdAt: String((l && l.createdAt) || ''),
         completedAt: l && l.completedAt == null ? null : String(l.completedAt),
+        launchCommand: typeof (l && l.launchCommand) === 'string' ? l.launchCommand : '',
         players: Array.isArray(l && l.players) ? l.players.map(normalizePlayer) : [],
     };
+}
+
+function lobbyEventLabel(lobby, fallbackId) {
+    return {
+        id: String((lobby && lobby.id) || fallbackId || ''),
+        game: String((lobby && (lobby.label || lobby.game)) || ''),
+    };
+}
+
+function postSalon(network, message) {
+    addChannelSystemMessage(network, getConfig().salon, message);
 }
 
 export class GameStore {
@@ -177,12 +192,43 @@ export class GameStore {
         return this.state.lobbiesOpen.filter((l) => l.game === gameId);
     }
 
+    readyLobbiesFor(gameId) {
+        return this.state.lobbiesReady.filter((l) => l.game === gameId);
+    }
+
+    lobbiesFor(gameId) {
+        return this.openLobbiesFor(gameId).concat(this.readyLobbiesFor(gameId));
+    }
+
     isInQueue(gameId) {
         return this.state.meQueues.includes(gameId);
     }
 
     isInLobby(lobbyId) {
         return this.state.meLobbies.includes(lobbyId);
+    }
+
+    handlePush(payload, network) {
+        const op = payload && payload.op;
+        const data = asObject(payload && payload.data);
+        const lobby = asObject(data.lobby);
+        const { id, game } = lobbyEventLabel(lobby, data.lobbyId);
+
+        let message = '';
+        if (op === 'lobby.ready') {
+            message = t('mgmt_push_ready', { id, game });
+        } else if (op === 'lobby.open') {
+            message = t('mgmt_push_open', { id, game });
+        } else if (op === 'lobby.kicked') {
+            message = t('mgmt_push_kicked', { id, game });
+        } else if (op === 'lobby.launched') {
+            message = t('mgmt_push_launched', { id, game });
+        } else if (op === 'start') {
+            message = t('mgmt_push_start');
+        }
+
+        if (message) postSalon(network, message);
+        this.refresh(network);
     }
 
     async refresh(network) {
@@ -242,6 +288,14 @@ export class GameStore {
         return this.mutate('lobby.leave', { lobby }, network);
     }
 
+    lobbyKick(lobby, nick, network) {
+        return this.mutate('lobby.kick', { lobby, nick }, network);
+    }
+
+    lobbyLaunch(lobby, network) {
+        return this.mutate('lobby.launch', { lobby }, network);
+    }
+
     async mutate(op, fields, network) {
         this.state.error = '';
         this.state.loading = true;
@@ -249,24 +303,46 @@ export class GameStore {
             const res = await this.client.request(op, fields, network);
             if (!res.ok) {
                 this.state.error = res.error || t('mgmt_err_op', { op });
+                await this.refresh(network);
+                return false;
             }
+
+            if (
+                (op === 'lobby.join' || op === 'lobby.create')
+                && res.data
+                && res.data.lobby
+                && res.data.lobby.status === 'ready'
+            ) {
+                const { id, game } = lobbyEventLabel(res.data.lobby);
+                postSalon(network, t('mgmt_push_ready', { id, game }));
+            }
+
+            if (op === 'lobby.launch' && res.data && res.data.lobby) {
+                const { id, game } = lobbyEventLabel(res.data.lobby);
+                postSalon(network, t('mgmt_push_launched', { id, game }));
+            }
+
             await this.refresh(network);
+            return true;
         } catch (err) {
             this.state.error = err instanceof Error ? err.message : String(err);
             this.state.loading = false;
+            return false;
         }
     }
 
     applyState(data) {
         if (Array.isArray(data.games) && data.games.length) {
-            this.state.games = data.games.map((g) => ({
-                id: String(g.id),
-                label: String(g.label || g.id),
-                minPlayers: Number(g.minPlayers) || 2,
-                maxPlayers: Number(g.maxPlayers) || 2,
-                queueCount: Number(g.queueCount) || 0,
-                openLobbies: Number(g.openLobbies) || 0,
-            }));
+            this.state.games = data.games
+                .filter((g) => g && isGameEnabled(String(g.id)))
+                .map((g) => ({
+                    id: String(g.id),
+                    label: String(g.label || g.id),
+                    minPlayers: Number(g.minPlayers) || 2,
+                    maxPlayers: Number(g.maxPlayers) || 2,
+                    queueCount: Number(g.queueCount) || 0,
+                    openLobbies: Number(g.openLobbies) || 0,
+                }));
         }
 
         const queues = {};
@@ -291,7 +367,7 @@ export class GameStore {
         this.state.meAccount = typeof data.account === 'string' ? data.account : '';
         this.state.meQueues = Array.isArray(data.queues) ? data.queues.map(String) : [];
         this.state.meLobbies = Array.isArray(data.lobbies)
-            ? data.lobbies.map((l) => String(l.id))
+            ? data.lobbies.map((l) => String((l && l.id) || l || '')).filter(Boolean)
             : [];
     }
 }

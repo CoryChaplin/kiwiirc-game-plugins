@@ -2,8 +2,10 @@
 import { getConfig } from './config.js';
 import { GM_TAG } from './constants.js';
 import { decodeJsonBase64Url, encodeJsonBase64Url } from './base64url.js';
-import { channelNamesMatch } from './network.js';
+import { channelNamesMatch, nicksMatch } from './network.js';
 import { t } from '../../shared/locales.js';
+
+const PUSH_OPS = new Set(['lobby.ready', 'lobby.open', 'lobby.kicked', 'lobby.launched', 'start']);
 
 const SALON_REFRESH_DEBOUNCE_MS = 300;
 
@@ -12,18 +14,6 @@ function newRequestId() {
         return crypto.randomUUID();
     }
     return `gm-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
-}
-
-function nicksMatch(a, b, irc) {
-    if (!a || !b) return false;
-    if (irc && typeof irc.caseCompare === 'function') {
-        try {
-            return irc.caseCompare(a, b);
-        } catch (_) {
-            // fall through
-        }
-    }
-    return a.toLowerCase() === b.toLowerCase();
 }
 
 function sendTagmsg(ircClient, target, tags) {
@@ -65,12 +55,18 @@ export class GmClient {
         this.pending = new Map();
         this.bound = false;
         this.salonUpdateHandler = null;
+        this.pushHandler = null;
         this._salonRefreshTimer = null;
     }
 
     /** Called (debounced) when a +gm TAGMSG targets the configured salon channel. */
     setSalonUpdateHandler(handler) {
         this.salonUpdateHandler = typeof handler === 'function' ? handler : null;
+    }
+
+    /** Unsolicited bot TAGMSG (lobby.ready / open / kicked / launched / start). */
+    setPushHandler(handler) {
+        this.pushHandler = typeof handler === 'function' ? handler : null;
     }
 
     bind() {
@@ -138,10 +134,14 @@ export class GmClient {
         if (!decoded || typeof decoded !== 'object') return;
 
         const id = decoded.id == null ? '' : String(decoded.id);
-        if (!id) return;
+        const pending = id ? this.pending.get(id) : null;
 
-        const pending = this.pending.get(id);
-        if (!pending) return;
+        if (!pending) {
+            if (PUSH_OPS.has(decoded.op) && this.pushHandler) {
+                this.pushHandler(decoded, network);
+            }
+            return;
+        }
 
         if (
             typeof decoded.part === 'number'

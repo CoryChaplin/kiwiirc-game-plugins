@@ -41,9 +41,10 @@ The client only accepts responses whose `nick` matches `gameMasterNick` (IRC cas
 ```json
 {
   "id": "<uuid>",
-  "op": "state | me | queue.join | queue.leave | lobby.create | lobby.join | lobby.leave | scores",
+  "op": "state | me | queue.join | queue.leave | lobby.create | lobby.join | lobby.leave | lobby.kick | lobby.launch | scores",
   "game": "<gameId>",
   "lobby": "<lobbyId>",
+  "nick": "<nick>",
   "maxPlayers": 4
 }
 ```
@@ -53,7 +54,8 @@ The client only accepts responses whose `nick` matches `gameMasterNick` (IRC cas
 | `id` | Always — correlation id for the response |
 | `op` | Always |
 | `game` | `queue.*`, `lobby.create`, `scores` |
-| `lobby` | `lobby.join`, `lobby.leave` |
+| `lobby` | `lobby.join`, `lobby.leave`, `lobby.kick`, `lobby.launch` |
+| `nick` | `lobby.kick` — player to exclude |
 | `maxPlayers` | Optional on `lobby.create` (e.g. Pictionary) |
 
 Known `game` ids: `pictionary`, `connectfour`, `tictactoe`, `chess`, `battleship`.
@@ -68,10 +70,26 @@ Known `game` ids: `pictionary`, `connectfour`, `tictactoe`, `chess`, `battleship
 | `queue.leave` | Leave that queue |
 | `lobby.create` | Create an open lobby for `game` |
 | `lobby.join` | Join lobby `lobby` |
-| `lobby.leave` | Leave lobby `lobby` |
+| `lobby.leave` | Leave lobby `lobby` (also allowed when `ready`; lobby becomes `open` if a slot frees) |
+| `lobby.kick` | Creator only: exclude `nick` from the lobby (also allowed when `ready`) |
+| `lobby.launch` | Creator only: close a **ready** lobby, drop members from queues, then the client starts the P2P game |
 | `scores` | Leaderboard for `game` (top entries + requester `me`) |
 
-Joining a queue or lobby should require a NickServ `account` (the UI disables actions when the user is not identified).
+Queues and lobbies are keyed by **nick**. NickServ is required only to persist scores; unidentified players can still queue and lobby.
+
+`start` / `game.start` is implemented by the bot (remove listed nicks from all queues/lobbies) but is **not sent by this client yet**.
+
+### Pushed ops (bot → client, no request `id`)
+
+| `op` | Who receives it | Client action |
+|---|---|---|
+| `lobby.ready` | Other lobby members (not the nick that filled the lobby) | Salon system line + refresh. `data.lobby.launchCommand` is the P2P slash command for the creator |
+| `lobby.open` | Other remaining members after a leave or kick frees a slot | Salon system line + refresh. Lobby is `open` again |
+| `lobby.kicked` | The excluded player | Salon system line + refresh |
+| `lobby.launched` | Other members after `lobby.launch` | Salon system line + refresh |
+| `start` | Nicks removed by `game.start` | Salon system line + refresh |
+
+A `ready` lobby stays listed until the creator clicks **Lancer**: the client sends `lobby.launch`, then runs `launchCommand` (or invites the other members via `input.command.<game>`).
 
 ## Response (bot → client)
 
@@ -142,8 +160,9 @@ If the payload is too large for one TAGMSG, send several envelopes with the **sa
         "createdAt": "2026-01-01T12:00:00Z",
         "completedAt": null,
         "players": [
-          { "account": "bob", "nick": "Bob", "joinedAt": "2026-01-01T12:00:00Z" }
-        ]
+          { "nick": "Bob", "joinedAt": "2026-01-01T12:00:00Z" }
+        ],
+        "launchCommand": null
       }
     ],
     "ready": []
@@ -183,12 +202,13 @@ The UI shows the first 5 entries of `top`. If `me` is already among those five, 
 
 1. **Listen** for `TAGMSG` aimed at the bot with tag `+gm`.
 2. **Decode** base64url → JSON request.
-3. **Authorize** (NickServ account for join/create ops).
+3. **Authorize** — matchmaking is nick-based; NickServ is only needed when recording scores.
 4. **Apply** queue/lobby mutations and persist state.
 5. **Reply** to the requesting nick with `TAGMSG` + `+gm` (same `id`), either as one JSON payload or chunked envelopes.
-6. **Broadcast** a `TAGMSG` with `+gm` to the configured salon channel (e.g. `#jeux`) whenever queues or lobbies change, so other clients refresh automatically. Payload can be minimal (any `+gm` value is enough); clients debounce and then re-fetch `state` + `me`.
+6. **Push** `lobby.ready` / `lobby.open` / `lobby.kicked` / `lobby.launched` as private TAGMSG to the affected nicks (no request `id`).
+7. Optional: **Broadcast** a `TAGMSG` with `+gm` to the salon so other clients refresh. The current bot does not; clients still listen and debounce if it happens.
 
-Peer-to-peer game invites (`/<game> <nick>`) are handled by the game plugins themselves, not by this bot protocol.
+Peer-to-peer game invites (`/<game> <nick>`) are handled by the game plugins themselves after `lobby.launch`.
 
 ## Game results (client → salon)
 
