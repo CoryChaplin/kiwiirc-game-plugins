@@ -2,7 +2,7 @@ import * as Utils from './libs/Utils.js';
 import GameButton from './components/GameButton.vue';
 import GameComponent from './components/GameComponent.vue';
 import { t } from '../shared/locales.js';
-import { completeGame } from '../shared/reportGameResult.js';
+import { announceGameStart, completeGame } from '../shared/reportGameResult.js';
 
 function reportConnectFourResult(network, game) {
     if (!game) return;
@@ -108,7 +108,10 @@ export function init(kiwi, config) {
             game.startGame(data.startPlayer);
             game.setInviteSent(false);
             game.setTurnMessage();
-            kiwi.emit('plugin-kiwi-games.game-started', { game: 'connectfour' });
+            announceGameStart(network, {
+                game: 'connectfour',
+                players: [game.getLocalPlayer(), game.getRemotePlayer()],
+            });
             if (!mediaViewerOpen && kiwi.state.getActiveBuffer().name === game.getRemotePlayer()) {
                 kiwi.emit('mediaviewer.show', { component: GameComponent });
             }

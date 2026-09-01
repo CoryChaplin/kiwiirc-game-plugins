@@ -1,26 +1,27 @@
 /* global kiwi:true */
 import { encodeJsonBase64Url } from './base64url.js';
-import { coerceBool, getPluginSettings } from './pluginConfig.js';
 
 const GM_TAG = '+gm';
 
 let activeManagementSalon = '';
 
-/** Called when the management sub-plugin starts (salon from merged config). */
+/** Called when the management sub-plugin actually starts (salon from merged config). */
 export function activateManagementSalon(salon) {
     activeManagementSalon = typeof salon === 'string' ? salon.trim() : '';
 }
 
 /**
- * Salon used for game.result broadcasts.
- * Prefers the salon activated by management init; falls back to config.
+ * Salon for game.start / game.result TAGMSG.
+ * Set only by management init — empty if management is not in the build,
+ * disabled, or started without a salon. Never infers a salon from config alone.
  */
 export function getManagementSalon() {
-    if (activeManagementSalon) return activeManagementSalon;
-    const settings = getPluginSettings();
-    const mgmt = settings.management || {};
-    if (coerceBool(mgmt.enabled, true) === false) return '';
-    return typeof mgmt.salon === 'string' ? mgmt.salon.trim() : '';
+    return activeManagementSalon;
+}
+
+/** True when management is running and a salon channel is configured. */
+export function isManagementActive() {
+    return Boolean(activeManagementSalon);
 }
 
 function sendTagmsg(ircClient, target, tags) {
@@ -36,10 +37,61 @@ function sendTagmsg(ircClient, target, tags) {
             return true;
         }
     } catch (err) {
-        console.warn('[kiwi-games] game.result TAGMSG failed', err);
+        console.warn('[kiwi-games] TAGMSG failed', err);
         return false;
     }
     return false;
+}
+
+function uniqueNicks(list) {
+    const seen = new Set();
+    const out = [];
+    (list || []).forEach((raw) => {
+        const nick = typeof raw === 'string' ? raw.trim() : '';
+        if (!nick) return;
+        const key = nick.toLowerCase();
+        if (seen.has(key)) return;
+        seen.add(key);
+        out.push(nick);
+    });
+    return out;
+}
+
+function salonTagmsg(network, payload) {
+    const salon = getManagementSalon();
+    if (!salon || !payload) return;
+    const net = network || (kiwi.state.getActiveNetwork && kiwi.state.getActiveNetwork());
+    const irc = net && net.ircClient;
+    if (!irc) return;
+    sendTagmsg(irc, salon, { [GM_TAG]: encodeJsonBase64Url(payload) });
+}
+
+/**
+ * Tell gameMaster that these nicks started a match, so they leave all queues
+ * and lobbies. Sends TAGMSG +gm game.start to the salon only when management
+ * is active (a salon was configured and the sub-plugin started).
+ * Sender must be one of `players`.
+ *
+ * @param {object} network
+ * @param {{ game: string, players: string[] }} result
+ */
+export function announceGameStart(network, result) {
+    const game = result && result.game;
+    const players = uniqueNicks(result && result.players);
+
+    kiwi.emit('plugin-kiwi-games.game-started', {
+        game,
+        players: players.slice(),
+        network,
+    });
+
+    if (!isManagementActive() || !game || players.length === 0) return;
+
+    salonTagmsg(network, {
+        op: 'game.start',
+        game,
+        players,
+    });
 }
 
 /**
@@ -64,18 +116,12 @@ export function completeGame(network, result) {
         winner,
     });
 
-    const salon = getManagementSalon();
-    if (!salon || !game) return;
+    if (!isManagementActive() || !game) return;
 
-    const net = network || (kiwi.state.getActiveNetwork && kiwi.state.getActiveNetwork());
-    const irc = net && net.ircClient;
-    if (!irc) return;
-
-    const payload = {
+    salonTagmsg(network, {
         op: 'game.result',
         game,
         players: players.slice(),
         winner,
-    };
-    sendTagmsg(irc, salon, { [GM_TAG]: encodeJsonBase64Url(payload) });
+    });
 }

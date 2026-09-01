@@ -105,7 +105,7 @@
 import * as Utils from '../libs/Utils.js';
 import { getPieceGlyph } from '../libs/pieceGlyphs.js';
 import GameFeedback from '../../shared/components/GameFeedback.vue';
-import { completeGame } from '../../shared/reportGameResult.js';
+import { announceGameStart, completeGame } from '../../shared/reportGameResult.js';
 
 export default {
     components: { GameFeedback },
@@ -226,8 +226,10 @@ export default {
                 const startPlayer = Math.floor(Math.random() * 2) === 0 ? network.nick : remotePlayer;
                 game.startGame(startPlayer);
                 Utils.sendData(network, remotePlayer, { cmd: 'invite_accepted', startPlayer });
-                // eslint-disable-next-line no-undef
-                kiwi.emit('plugin-kiwi-games.game-started', { game: 'chess' });
+                announceGameStart(network, {
+                    game: 'chess',
+                    players: [network.nick, remotePlayer],
+                });
             } else {
                 Utils.sendData(network, remotePlayer, { cmd: 'invite_declined' });
                 // eslint-disable-next-line no-undef

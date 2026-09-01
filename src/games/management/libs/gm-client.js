@@ -55,6 +55,7 @@ export class GmClient {
         this.pending = new Map();
         this.bound = false;
         this.salonUpdateHandler = null;
+        this.salonEventHandler = null;
         this.pushHandler = null;
         this._salonRefreshTimer = null;
     }
@@ -62,6 +63,11 @@ export class GmClient {
     /** Called (debounced) when a +gm TAGMSG targets the configured salon channel. */
     setSalonUpdateHandler(handler) {
         this.salonUpdateHandler = typeof handler === 'function' ? handler : null;
+    }
+
+    /** Immediate salon +gm events (e.g. queue.join announcements). */
+    setSalonEventHandler(handler) {
+        this.salonEventHandler = typeof handler === 'function' ? handler : null;
     }
 
     /** Unsolicited bot TAGMSG (lobby.ready / open / kicked / launched / start). */
@@ -75,6 +81,14 @@ export class GmClient {
         kiwi.on('irc.tagmsg', (event, network) => {
             this.onTagmsg(event, network);
         });
+    }
+
+    notifySalon(payload, network) {
+        const net = resolveNetwork(network);
+        const irc = net && net.ircClient;
+        const salon = getConfig().salon;
+        if (!irc || !salon || !payload) return false;
+        return sendTagmsg(irc, salon, { [GM_TAG]: encodeJsonBase64Url(payload) });
     }
 
     request(op, fields = {}, network) {
@@ -117,21 +131,23 @@ export class GmClient {
         const raw = event.tags[GM_TAG] || event.tags['+GM'];
         if (!raw || typeof raw !== 'string') return;
 
+        const decoded = decodeJsonBase64Url(raw);
+        if (!decoded || typeof decoded !== 'object') return;
+
         const irc = network && network.ircClient;
         const target = eventTarget(event);
         const salon = getConfig().salon;
 
-        // Channel broadcast → refresh queues/lobbies (bot notify in salon)
         if (channelNamesMatch(target, salon, irc && irc.caseCompare)) {
+            if (this.salonEventHandler) {
+                this.salonEventHandler(network, event, decoded);
+            }
             this.scheduleSalonRefresh(network);
             return;
         }
 
         const botNick = getConfig().gameMasterNick;
         if (!nicksMatch(event.nick, botNick, irc)) return;
-
-        const decoded = decodeJsonBase64Url(raw);
-        if (!decoded || typeof decoded !== 'object') return;
 
         const id = decoded.id == null ? '' : String(decoded.id);
         const pending = id ? this.pending.get(id) : null;

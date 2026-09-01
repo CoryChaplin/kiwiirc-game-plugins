@@ -20,8 +20,17 @@ export function init(kiwi, config) {
     client.setSalonUpdateHandler((network) => {
         store.refresh(network);
     });
+    client.setSalonEventHandler((network, event, payload) => {
+        store.handleSalonEvent(network, event, payload);
+    });
     client.setPushHandler((payload, network) => {
         store.handlePush(payload, network);
+    });
+
+    kiwi.on('plugin-kiwi-games.game-started', (ev) => {
+        const net = (ev && ev.network)
+            || (kiwi.state.getActiveNetwork && kiwi.state.getActiveNetwork());
+        if (net) store.refresh(net);
     });
 
     if (cfg.button !== false && typeof kiwi.addUi === 'function') {

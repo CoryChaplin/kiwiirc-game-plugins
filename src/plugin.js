@@ -83,7 +83,7 @@ kiwi.plugin('kiwi-games', function(kiwi) {
             button: true,
             salon: '#jeux',
             gameMasterNick: 'gameMaster',
-            requestTimeoutMs: 15000,
+            requestTimeoutMs: 8000,
         };
         const mgmtRaw = settings.management;
         const mgmtCfg = {
@@ -92,8 +92,13 @@ kiwi.plugin('kiwi-games', function(kiwi) {
         };
         mgmtCfg.enabled = coerceBool(mgmtCfg.enabled, true);
         mgmtCfg.button = coerceBool(mgmtCfg.button, true);
+        if (typeof mgmtCfg.salon === 'string') {
+            mgmtCfg.salon = mgmtCfg.salon.trim();
+        } else {
+            mgmtCfg.salon = '';
+        }
         if (mgmtRaw === false) mgmtCfg.enabled = false;
-        if (mgmtCfg.enabled) {
+        if (mgmtCfg.enabled && mgmtCfg.salon) {
             initManagement(kiwi, mgmtCfg);
         }
     }

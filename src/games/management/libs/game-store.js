@@ -1,14 +1,14 @@
 /* global kiwi:true */
-import { GAME_IDS } from './constants.js';
+import { GAME_IDS, GAME_LABELS } from './constants.js';
 import { getConfig } from './config.js';
-import { addChannelSystemMessage } from './network.js';
+import { addChannelSystemMessage, nicksMatch } from './network.js';
 import { t } from '../../shared/locales.js';
 import { isGameEnabled } from '../../shared/pluginConfig.js';
 
 function emptyGames() {
     return GAME_IDS.filter((id) => isGameEnabled(id)).map((id) => ({
         id,
-        label: id,
+        label: GAME_LABELS[id] || id,
         minPlayers: 2,
         maxPlayers: id === 'pictionary' ? 10 : 2,
         queueCount: 0,
@@ -32,6 +32,7 @@ function createInitialState() {
         scoresOpenGame: '',
         scoresByGame: {},
         lastUpdated: 0,
+        queueInviteLocked: false,
     };
 }
 
@@ -92,6 +93,15 @@ function lobbyEventLabel(lobby, fallbackId) {
     };
 }
 
+function gameDisplayName(gameId) {
+    const id = String(gameId || '');
+    const translated = t('dropdown_' + id);
+    if (translated && translated.indexOf('dropdown_') === -1) {
+        return translated;
+    }
+    return GAME_LABELS[id] || id;
+}
+
 function postSalon(network, message) {
     addChannelSystemMessage(network, getConfig().salon, message);
 }
@@ -104,10 +114,13 @@ export class GameStore {
             : initial;
         this.client = client;
         this.refreshSeq = 0;
+        this._queueInviteUnlockTimer = null;
+        this._refreshInFlight = null;
+        this._refreshQueued = null;
     }
 
     setExpanded(gameId) {
-        this.state.expandedGame = this.state.expandedGame === gameId ? '' : gameId;
+        this.state.expandedGame = gameId || '';
     }
 
     scoresFor(gameId) {
@@ -200,12 +213,45 @@ export class GameStore {
         return this.openLobbiesFor(gameId).concat(this.readyLobbiesFor(gameId));
     }
 
+    isQueueInviteLocked() {
+        return Boolean(this.state.queueInviteLocked);
+    }
+
+    lockQueueInvites(durationMs = 2 * 60 * 1000) {
+        this.state.queueInviteLocked = true;
+        if (this._queueInviteUnlockTimer) {
+            clearTimeout(this._queueInviteUnlockTimer);
+        }
+        this._queueInviteUnlockTimer = setTimeout(() => {
+            this.state.queueInviteLocked = false;
+            this._queueInviteUnlockTimer = null;
+        }, durationMs);
+    }
+
     isInQueue(gameId) {
         return this.state.meQueues.includes(gameId);
     }
 
     isInLobby(lobbyId) {
         return this.state.meLobbies.includes(lobbyId);
+    }
+
+    handleSalonEvent(network, event, payload) {
+        const op = payload && payload.op;
+        if (op !== 'queue.join') return;
+
+        const gameId = payload.game && String(payload.game);
+        const nick = event && event.nick;
+        if (!gameId || !nick) return;
+
+        const irc = network && network.ircClient;
+        if (nicksMatch(nick, network && network.nick, irc)) return;
+        if (!this.isInQueue(gameId)) return;
+
+        postSalon(network, t('mgmt_queue_peer', {
+            nick,
+            game: gameDisplayName(gameId),
+        }));
     }
 
     handlePush(payload, network) {
@@ -231,10 +277,27 @@ export class GameStore {
         this.refresh(network);
     }
 
-    async refresh(network) {
+    refresh(network) {
+        this._refreshQueued = network || this._refreshQueued;
+        if (this._refreshInFlight) {
+            return this._refreshInFlight;
+        }
+        this._refreshInFlight = this._refreshNow().finally(() => {
+            this._refreshInFlight = null;
+            if (this._refreshQueued) {
+                const queued = this._refreshQueued;
+                this._refreshQueued = null;
+                return this.refresh(queued);
+            }
+            return undefined;
+        });
+        return this._refreshInFlight;
+    }
+
+    async _refreshNow() {
+        const network = this._refreshQueued;
+        this._refreshQueued = null;
         const seq = ++this.refreshSeq;
-        this.state.loading = true;
-        this.state.error = '';
 
         try {
             const [stateRes, meRes] = await Promise.all([
@@ -256,13 +319,10 @@ export class GameStore {
             }
 
             this.state.lastUpdated = Date.now();
+            this.state.error = '';
         } catch (err) {
             if (seq !== this.refreshSeq) return;
             this.state.error = err instanceof Error ? err.message : String(err);
-        } finally {
-            if (seq === this.refreshSeq) {
-                this.state.loading = false;
-            }
         }
     }
 
@@ -298,7 +358,6 @@ export class GameStore {
 
     async mutate(op, fields, network) {
         this.state.error = '';
-        this.state.loading = true;
         try {
             const res = await this.client.request(op, fields, network);
             if (!res.ok) {
@@ -323,10 +382,10 @@ export class GameStore {
             }
 
             await this.refresh(network);
+            this.client.notifySalon({ op, ...fields }, network);
             return true;
         } catch (err) {
             this.state.error = err instanceof Error ? err.message : String(err);
-            this.state.loading = false;
             return false;
         }
     }
@@ -335,14 +394,17 @@ export class GameStore {
         if (Array.isArray(data.games) && data.games.length) {
             this.state.games = data.games
                 .filter((g) => g && isGameEnabled(String(g.id)))
-                .map((g) => ({
-                    id: String(g.id),
-                    label: String(g.label || g.id),
-                    minPlayers: Number(g.minPlayers) || 2,
-                    maxPlayers: Number(g.maxPlayers) || 2,
-                    queueCount: Number(g.queueCount) || 0,
-                    openLobbies: Number(g.openLobbies) || 0,
-                }));
+                .map((g) => {
+                    const id = String(g.id);
+                    return {
+                        id,
+                        label: GAME_LABELS[id] || String(g.label || id),
+                        minPlayers: Number(g.minPlayers) || 2,
+                        maxPlayers: Number(g.maxPlayers) || 2,
+                        queueCount: Number(g.queueCount) || 0,
+                        openLobbies: Number(g.openLobbies) || 0,
+                    };
+                });
         }
 
         const queues = {};

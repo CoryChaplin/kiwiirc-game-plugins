@@ -9,10 +9,18 @@ export const GAME_IDS = [
     'battleship',
 ];
 
+export const GAME_LABELS = {
+    pictionary: 'Pictionary',
+    connectfour: 'Connect Four',
+    tictactoe: 'Tic-Tac-Toe',
+    chess: 'Chess',
+    battleship: 'Battleship',
+};
+
 export const defaultConfig = {
     enabled: true,
     button: true,
     salon: '#jeux',
     gameMasterNick: 'gameMaster',
-    requestTimeoutMs: 15000,
+    requestTimeoutMs: 8000,
 };

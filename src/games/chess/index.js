@@ -1,7 +1,7 @@
 import * as Utils from './libs/Utils.js';
 import GameComponent from './components/GameComponent.vue';
 import { t } from '../shared/locales.js';
-import { completeGame } from '../shared/reportGameResult.js';
+import { announceGameStart, completeGame } from '../shared/reportGameResult.js';
 
 function reportChessResult(network, game) {
     if (!game) return;
@@ -105,7 +105,10 @@ export function init(kiwi, config) {
             kiwi.state.addMessage(buffer, { nick: '*', message: t('ch_invite_accepted', { nick: event.nick }), type: 'message' });
             game.startGame(data.startPlayer);
             game.setInviteSent(false);
-            kiwi.emit('plugin-kiwi-games.game-started', { game: 'chess' });
+            announceGameStart(network, {
+                game: 'chess',
+                players: [game.getLocalPlayer(), game.getRemotePlayer()],
+            });
             if (!mediaViewerOpen && kiwi.state.getActiveBuffer().name === game.getRemotePlayer()) {
                 kiwi.emit('mediaviewer.show', { component: GameComponent });
             }

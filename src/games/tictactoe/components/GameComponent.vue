@@ -34,7 +34,7 @@
 <script>
 
 import * as Utils from '../libs/Utils.js';
-import { completeGame } from '../../shared/reportGameResult.js';
+import { announceGameStart, completeGame } from '../../shared/reportGameResult.js';
 
 export default {
     computed: {
@@ -88,8 +88,10 @@ export default {
                 let startPlayer = Math.floor(Math.random() * 2) === 0 ? network.nick : remotePlayer;
                 game.startGame(startPlayer);
                 game.setTurnMessage();
-                // eslint-disable-next-line no-undef
-                kiwi.emit('plugin-kiwi-games.game-started', { game: 'tictactoe' });
+                announceGameStart(network, {
+                    game: 'tictactoe',
+                    players: [network.nick, remotePlayer],
+                });
                 Utils.sendData(network, remotePlayer, {
                     cmd: 'invite_accepted', startPlayer: startPlayer,
                 });

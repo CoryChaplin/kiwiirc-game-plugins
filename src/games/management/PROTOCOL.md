@@ -18,7 +18,7 @@ Under `plugin_kiwi_games.management`:
 | `button` | `true` | Channel header button |
 | `salon` | `#jeux` | Channel where the header button appears |
 | `gameMasterNick` | `gameMaster` | Bot nick to send TAGMSG to |
-| `requestTimeoutMs` | `15000` | Client-side request timeout |
+| `requestTimeoutMs` | `8000` | Client-side request timeout |
 
 ## Transport
 
@@ -41,7 +41,7 @@ The client only accepts responses whose `nick` matches `gameMasterNick` (IRC cas
 ```json
 {
   "id": "<uuid>",
-  "op": "state | me | queue.join | queue.leave | lobby.create | lobby.join | lobby.leave | lobby.kick | lobby.launch | scores",
+  "op": "state | me | queue.join | queue.leave | lobby.create | lobby.join | lobby.leave | lobby.kick | lobby.launch | start | game.start | scores",
   "game": "<gameId>",
   "lobby": "<lobbyId>",
   "nick": "<nick>",
@@ -57,6 +57,7 @@ The client only accepts responses whose `nick` matches `gameMasterNick` (IRC cas
 | `lobby` | `lobby.join`, `lobby.leave`, `lobby.kick`, `lobby.launch` |
 | `nick` | `lobby.kick` — player to exclude |
 | `maxPlayers` | Optional on `lobby.create` (e.g. Pictionary) |
+| `players` | `start` / `game.start` — nicks in the match (sender must be one of them) |
 
 Known `game` ids: `pictionary`, `connectfour`, `tictactoe`, `chess`, `battleship`.
 
@@ -73,11 +74,12 @@ Known `game` ids: `pictionary`, `connectfour`, `tictactoe`, `chess`, `battleship
 | `lobby.leave` | Leave lobby `lobby` (also allowed when `ready`; lobby becomes `open` if a slot frees) |
 | `lobby.kick` | Creator only: exclude `nick` from the lobby (also allowed when `ready`) |
 | `lobby.launch` | Creator only: close a **ready** lobby, drop members from queues, then the client starts the P2P game |
+| `start` / `game.start` | Remove listed nicks from all queues and lobbies (P2P invite accepted, or salon broadcast) |
 | `scores` | Leaderboard for `game` (top entries + requester `me`) |
 
 Queues and lobbies are keyed by **nick**. NickServ is required only to persist scores; unidentified players can still queue and lobby.
 
-`start` / `game.start` is implemented by the bot (remove listed nicks from all queues/lobbies) but is **not sent by this client yet**.
+When a P2P game actually starts (invite accepted, or Pictionary lobby start), **and management is active with a salon**, the client broadcasts `game.start` with `players` to that salon. Without management (or without `salon`), no TAGMSG is sent. The bot drops those nicks from every queue and lobby. Both participants may send the same payload; the bot treats a second start as a no-op if they are already gone.
 
 ### Pushed ops (bot → client, no request `id`)
 
@@ -206,9 +208,9 @@ The UI shows the first 5 entries of `top`. If `me` is already among those five, 
 4. **Apply** queue/lobby mutations and persist state.
 5. **Reply** to the requesting nick with `TAGMSG` + `+gm` (same `id`), either as one JSON payload or chunked envelopes.
 6. **Push** `lobby.ready` / `lobby.open` / `lobby.kicked` / `lobby.launched` as private TAGMSG to the affected nicks (no request `id`).
-7. Optional: **Broadcast** a `TAGMSG` with `+gm` to the salon so other clients refresh. The current bot does not; clients still listen and debounce if it happens.
+7. After a successful queue/lobby mutation, the **client** also sends a `TAGMSG` with `+gm` to the salon so other clients refresh. On `queue.join`, clients already in that queue show a buffer line suggesting to talk to the new player.
 
-Peer-to-peer game invites (`/<game> <nick>`) are handled by the game plugins themselves after `lobby.launch`.
+Peer-to-peer game invites (`/<game> <nick>`) are handled by the game plugins themselves. When the invite is accepted **and management is active with a salon**, the client broadcasts `game.start` to the salon so the bot can drop those nicks from queues.
 
 ## Game results (client → salon)
 

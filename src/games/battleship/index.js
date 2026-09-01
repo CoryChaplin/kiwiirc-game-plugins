@@ -1,7 +1,7 @@
 import * as Utils from './libs/Utils.js';
 import GameComponent from './components/GameComponent.vue';
 import { t } from '../shared/locales.js';
-import { completeGame } from '../shared/reportGameResult.js';
+import { announceGameStart, completeGame } from '../shared/reportGameResult.js';
 
 function reportBattleshipResult(network, game) {
     if (!game) return;
@@ -115,7 +115,10 @@ export function init(kiwi, config) {
             });
             game.startGame(data.startPlayer);
             game.setInviteSent(false);
-            kiwi.emit('plugin-kiwi-games.game-started', { game: 'battleship' });
+            announceGameStart(network, {
+                game: 'battleship',
+                players: [game.getLocalPlayer(), game.getRemotePlayer()],
+            });
             if (!mediaViewerOpen && kiwi.state.getActiveBuffer().name === game.getRemotePlayer()) {
                 kiwi.emit('mediaviewer.show', { component: GameComponent });
             }

@@ -28,29 +28,32 @@
                 v-for="game in games"
                 :key="game.id"
                 class="kiwi-gm-game"
-                :class="{ 'kiwi-gm-game--open': state.expandedGame === game.id }"
+                :class="{ 'kiwi-gm-game--open': expandedGame === game.id }"
             >
-                <div class="kiwi-gm-game-row">
-                    <button
-                        type="button"
-                        class="kiwi-gm-game-namebtn"
-                        @click="toggleGame(game.id)"
-                    >{{ game.label }}</button>
+                <div
+                    class="kiwi-gm-game-row"
+                    role="button"
+                    tabindex="0"
+                    @click="toggleGame(game.id)"
+                    @keydown.enter.space.prevent="toggleGame(game.id)"
+                >
+                    <span class="kiwi-gm-game-namebtn">
+                        <span class="kiwi-gm-game-chevron" aria-hidden="true">{{ expandedGame === game.id ? '▾' : '▸' }}</span>
+                        {{ gameTitle(game) }}
+                    </span>
                     <button
                         type="button"
                         class="kiwi-gm-scores-btn"
                         :class="{ 'kiwi-gm-scores-btn--open': isScoresOpen(game.id) }"
                         :title="$t('kiwi-games:mgmt_scores_title')"
-                        @click="toggleScores(game.id)"
+                        @click.stop="toggleScores(game.id)"
                     >🏆</button>
-                    <button
-                        type="button"
+                    <span
                         class="kiwi-gm-game-metabtn"
-                        @click="toggleGame(game.id)"
                     >
                         <span :title="$t('kiwi-games:mgmt_queue_title')">👥 {{ game.queueCount }}</span>
                         <span :title="$t('kiwi-games:mgmt_lobbies_open')">🏠 {{ game.openLobbies }}</span>
-                    </button>
+                    </span>
                 </div>
 
                 <div v-if="isScoresOpen(game.id)" class="kiwi-gm-scores">
@@ -105,7 +108,7 @@
                     </template>
                 </div>
 
-                <div v-if="state.expandedGame === game.id" class="kiwi-gm-game-body">
+                <div v-if="expandedGame === game.id" class="kiwi-gm-game-body">
                     <section class="kiwi-gm-section">
                         <div class="kiwi-gm-section-head">
                             <h3>{{ $t('kiwi-games:mgmt_queue_title') }}</h3>
@@ -135,7 +138,8 @@
                                     v-if="inQueue(game.id) && !isSelf(p)"
                                     type="button"
                                     class="kiwi-gm-btn kiwi-gm-btn--small"
-                                    :disabled="state.loading"
+                                    :disabled="state.loading || queueInvitesLocked"
+                                    :title="queueInvitesLocked ? $t('kiwi-games:mgmt_invite_cooldown') : ''"
                                     @click="invitePlayer(game.id, p.nick || p.account)"
                                 >{{ $t('kiwi-games:mgmt_invite') }}</button>
                             </li>
@@ -250,7 +254,11 @@ export default {
         return {
             store: getGameStore(),
             createMaxPlayers: 4,
+            expandedGame: '',
         };
+    },
+    created() {
+        this.expandedGame = this.store.state.expandedGame || '';
     },
     computed: {
         state() {
@@ -262,13 +270,26 @@ export default {
         games() {
             return this.state.games;
         },
+        queueInvitesLocked() {
+            return Boolean(this.state.queueInviteLocked);
+        },
     },
     methods: {
         refresh() {
             this.store.refresh(this.network);
         },
         toggleGame(gameId) {
-            this.store.setExpanded(gameId);
+            const next = this.expandedGame === gameId ? '' : gameId;
+            this.expandedGame = next;
+            this.store.setExpanded(next);
+        },
+        gameTitle(game) {
+            const id = game && game.id;
+            if (!id) return '';
+            const key = 'kiwi-games:dropdown_' + id;
+            const translated = this.$t(key);
+            if (translated && translated !== key) return translated;
+            return (game && game.label) || id;
         },
         toggleScores(gameId) {
             this.store.toggleScores(gameId, this.network);
@@ -321,10 +342,18 @@ export default {
             return this.store.lobbiesFor(gameId);
         },
         inQueue(gameId) {
-            return this.store.isInQueue(gameId);
+            if (this.store && typeof this.store.isInQueue === 'function') {
+                return this.store.isInQueue(gameId);
+            }
+            const queues = this.state && this.state.meQueues;
+            return Array.isArray(queues) && queues.includes(gameId);
         },
         inLobby(lobbyId) {
-            return this.store.isInLobby(lobbyId);
+            if (this.store && typeof this.store.isInLobby === 'function') {
+                return this.store.isInLobby(lobbyId);
+            }
+            const lobbies = this.state && this.state.meLobbies;
+            return Array.isArray(lobbies) && lobbies.includes(lobbyId);
         },
         isSelf(player) {
             const meAccount = this.state.meAccount;
@@ -357,9 +386,11 @@ export default {
             const buffer = this.buffer;
             const target = (nick || '').trim();
             if (!network || !buffer || !target) return;
+            if (this.store.isQueueInviteLocked()) return;
             const evt = { handled: false, params: [target] };
             const ctx = { network, buffer };
             kiwi.emit(`input.command.${gameId}`, evt, gameId, target, ctx);
+            this.store.lockQueueInvites();
         },
         isLobbyFull(lobby) {
             const max = Number(lobby && lobby.maxPlayers) || 0;
@@ -493,6 +524,7 @@ export default {
 .kiwi-gm-game-row {
     display: flex;
     align-items: stretch;
+    cursor: pointer;
 }
 
 .kiwi-gm-game-namebtn,
@@ -503,18 +535,26 @@ export default {
     border: 0;
     background: transparent;
     color: inherit;
-    cursor: pointer;
     text-align: left;
     font: inherit;
     padding: 0.65em 0.35em;
 }
 
 .kiwi-gm-game-namebtn {
+    flex: 1;
     padding-left: 0.75em;
     min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+}
+
+.kiwi-gm-game-chevron {
+    display: inline-block;
+    width: 0.9em;
+    flex-shrink: 0;
+    opacity: 0.65;
+    font-size: 0.85em;
 }
 
 .kiwi-gm-game-metabtn {
@@ -525,8 +565,7 @@ export default {
     white-space: nowrap;
 }
 
-.kiwi-gm-game-namebtn:hover,
-.kiwi-gm-game-metabtn:hover {
+.kiwi-gm-game-row:hover {
     background: rgba(128, 128, 128, 0.1);
 }
 

@@ -2,7 +2,7 @@ import * as Utils from './libs/Utils.js';
 import GameComponent from './components/GameComponent.vue';
 import Pictionary from './libs/Pictionary.js';
 import { t } from '../shared/locales.js';
-import { completeGame } from '../shared/reportGameResult.js';
+import { announceGameStart, completeGame } from '../shared/reportGameResult.js';
 
 function pictionaryWinner(game) {
   const scores = game.getScoresByNick() || {};
@@ -321,6 +321,10 @@ export function init(kiwi, config) {
         });
         game.startGame(data.drawer);
         game.setInviteSent(false);
+        announceGameStart(network, {
+          game: 'pictionary',
+          players: [network.nick, event.nick],
+        });
         const active = kiwi.state.getActiveBuffer();
         if (!mediaViewerOpen && active && active.name === game.getTagTarget()) {
           kiwi.emit('mediaviewer.show', { component: GameComponent });
@@ -539,7 +543,13 @@ export function init(kiwi, config) {
           Array.isArray(data.wordsUsedThisGame) ? data.wordsUsedThisGame : undefined,
         );
         game.setInviteSent(false);
-        kiwi.emit('plugin-kiwi-games.game-started', { game: 'pictionary' });
+        const startPlayers = Array.isArray(data.participants) && data.participants.length
+          ? data.participants
+          : (game.getParticipants && game.getParticipants()) || [];
+        announceGameStart(network, {
+          game: 'pictionary',
+          players: startPlayers.slice(),
+        });
         kiwi.state.addMessage(buffer, {
           nick: '*',
           message: t('pict_game_start', { drawer: data.drawer }),
