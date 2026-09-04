@@ -27,6 +27,8 @@
 
 <script>
 /* global kiwi:true */
+import { BUILD_GAMES } from '../../../build-features.js';
+import { getGameConfig, getPluginSettings } from '../pluginConfig.js';
 
 const tttSvg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">'
     + '<line x1="8" y1="2" x2="8" y2="22"/><line x1="16" y1="2" x2="16" y2="22"/>'
@@ -61,13 +63,16 @@ const chSvg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill=
     + '<rect x="6" y="19.2" width="12" height="1.8" rx="0.9"/>'
     + '</svg>';
 
+const pictSvg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor"><path d="M5.6 11.6l-1.2-1.2c-0.8-0.2-2-0.1-2.7 1-0.8 1.1-0.3 2.8-1.7 4.6 0 0 3.5 0 4.8-1.3 1.2-1.2 1.2-2.2 1-3l-0.2-0.1z"/><path d="M5.8 8.1c-0.2 0.3-0.5 0.7-0.7 1 0 0.2-0.1 0.3-0.2 0.4l1.5 1.5c0.1-0.1 0.3-0.2 0.4-0.3 0.3-0.2 0.7-0.4 1-0.7 0.4 0 0.6-0.2 0.8-0.4l-2.2-2.2c-0.2 0.2-0.4 0.4-0.6 0.7z"/><path d="M15.8 0.2c-0.3-0.3-0.7-0.3-1-0.1 0 0-3 2.5-5.9 5.1-0.4 0.4-0.7 0.7-1.1 1-0.2 0.2-0.4 0.4-0.6 0.5l2.1 2.1c0.2-0.2 0.4-0.4 0.5-0.7 0.3-0.4 0.6-0.7 0.9-1.1 2.5-3 5.1-5.9 5.1-5.9 0.3-0.2 0.3-0.6 0-0.9z"/></svg>';
+
+/* global __KIWI_BUILD_GAME_BATTLESHIP__, __KIWI_BUILD_GAME_CHESS__, __KIWI_BUILD_GAME_CONNECTFOUR__, __KIWI_BUILD_GAME_TICTACTOE__, __KIWI_BUILD_GAME_PICTIONARY__ */
 const GAME_DEFS = [
-    { id: 'battleship',  labelKey: 'dropdown_battleship',  icon: bsSvg },
-    { id: 'chess',       labelKey: 'dropdown_chess',       icon: chSvg },
-    { id: 'connectfour', labelKey: 'dropdown_connectfour', icon: c4Svg },
-    { id: 'tictactoe',   labelKey: 'dropdown_tictactoe',   icon: tttSvg },
-    { id: 'pictionary',  labelKey: 'dropdown_pictionary',   icon: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor"><path d="M5.6 11.6l-1.2-1.2c-0.8-0.2-2-0.1-2.7 1-0.8 1.1-0.3 2.8-1.7 4.6 0 0 3.5 0 4.8-1.3 1.2-1.2 1.2-2.2 1-3l-0.2-0.1z"/><path d="M5.8 8.1c-0.2 0.3-0.5 0.7-0.7 1 0 0.2-0.1 0.3-0.2 0.4l1.5 1.5c0.1-0.1 0.3-0.2 0.4-0.3 0.3-0.2 0.7-0.4 1-0.7 0.4 0 0.6-0.2 0.8-0.4l-2.2-2.2c-0.2 0.2-0.4 0.4-0.6 0.7z"/><path d="M15.8 0.2c-0.3-0.3-0.7-0.3-1-0.1 0 0-3 2.5-5.9 5.1-0.4 0.4-0.7 0.7-1.1 1-0.2 0.2-0.4 0.4-0.6 0.5l2.1 2.1c0.2-0.2 0.4-0.4 0.5-0.7 0.3-0.4 0.6-0.7 0.9-1.1 2.5-3 5.1-5.9 5.1-5.9 0.3-0.2 0.3-0.6 0-0.9z"/></svg>' },
-];
+    __KIWI_BUILD_GAME_BATTLESHIP__ && { id: 'battleship', labelKey: 'dropdown_battleship', icon: bsSvg },
+    __KIWI_BUILD_GAME_CHESS__ && { id: 'chess', labelKey: 'dropdown_chess', icon: chSvg },
+    __KIWI_BUILD_GAME_CONNECTFOUR__ && { id: 'connectfour', labelKey: 'dropdown_connectfour', icon: c4Svg },
+    __KIWI_BUILD_GAME_TICTACTOE__ && { id: 'tictactoe', labelKey: 'dropdown_tictactoe', icon: tttSvg },
+    __KIWI_BUILD_GAME_PICTIONARY__ && { id: 'pictionary', labelKey: 'dropdown_pictionary', icon: pictSvg },
+].filter(Boolean);
 
 export default {
     data() {
@@ -85,14 +90,16 @@ export default {
 
             if (!buffer || !network) return false;
             if (network.nick === buffer.name) return false;
+            if (!GAME_DEFS.length) return false;
             return true;
         },
         enabledGames() {
-            const settings = (kiwi.state.settings && kiwi.state.settings['plugin_kiwi_games']) || {};
+            const settings = getPluginSettings();
             return GAME_DEFS
                 .filter(({ id }) => {
-                    const cfg = settings[id] || {};
-                    return cfg.enabled !== false && cfg.button !== false;
+                    if (!BUILD_GAMES[id]) return false;
+                    const cfg = getGameConfig(id, settings);
+                    return cfg.enabled && cfg.button;
                 })
                 .map(({ id, labelKey, icon }) => ({
                     id,

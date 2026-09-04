@@ -139,6 +139,7 @@ export default class ConnectFour {
 
         if (winningLine) {
             const winner = this.getWinnerNickFromMarker(winnerMarker);
+            this.data.gameWinner = winner;
             this.data.gameMessage = t('c4_winner', { winner });
             this.data.gameOver = true;
             winningLine.forEach(([r, c]) => {
@@ -151,6 +152,7 @@ export default class ConnectFour {
         if (isDraw) {
             this.data.gameMessage = t('c4_winner_draw');
             this.data.gameDraw = true;
+            this.data.gameWinner = '';
             this.data.gameOver = true;
         }
     }
@@ -186,12 +188,24 @@ export default class ConnectFour {
         this.data.localPlayer = val;
     }
 
+    getLocalPlayer() {
+        return this.data.localPlayer;
+    }
+
     getRemotePlayer() {
         return this.data.remotePlayer;
     }
 
     setRemotePlayer(val) {
         this.data.remotePlayer = val;
+    }
+
+    getGameDraw() {
+        return this.data.gameDraw;
+    }
+
+    getGameWinner() {
+        return this.data.gameWinner;
     }
 
     getStartPlayer() {

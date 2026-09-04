@@ -3,9 +3,16 @@ const webpack = require('webpack');
 const VueLoaderPlugin = require('vue-loader/lib/plugin');
 const TerserPlugin = require('terser-webpack-plugin');
 const CopyWebpackPlugin = require('copy-webpack-plugin');
+const {
+    resolveBuildFeatures,
+    logBuildFeatures,
+    buildDefinePluginEntries,
+} = require('./scripts/resolve-build-features');
 
-module.exports = (env, argv) => {
-    const mode = (argv && argv.mode) || 'production';
+module.exports = (env = {}, argv = {}) => {
+    const mode = argv.mode || 'production';
+    const features = resolveBuildFeatures(env);
+    logBuildFeatures(features);
 
     return {
         mode,
@@ -38,6 +45,7 @@ module.exports = (env, argv) => {
             new webpack.ProvidePlugin({
                 kiwi: path.resolve(__dirname, 'src/kiwi-runtime.js'),
             }),
+            new webpack.DefinePlugin(buildDefinePluginEntries(features)),
             new CopyWebpackPlugin({
                 patterns: [
                     {
@@ -57,6 +65,8 @@ module.exports = (env, argv) => {
             minimizer: mode === 'production'
                 ? [new TerserPlugin({ extractComments: false })]
                 : [],
+            usedExports: true,
+            sideEffects: true,
         },
         devtool: mode === 'development' ? 'eval-cheap-module-source-map' : undefined,
         devServer: {

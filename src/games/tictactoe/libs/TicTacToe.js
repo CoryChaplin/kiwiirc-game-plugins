@@ -75,13 +75,15 @@ export default class TicTacToe {
 
         winboardValues.forEach((x, ind) => {
             if (x.every((y) => y === 'X')) {
-                this.data.gameMessage = t('ttt_winner_x', { nick: this.getWinnerNickFromMarker('X') });
+                this.data.gameWinner = this.getWinnerNickFromMarker('X');
+                this.data.gameMessage = t('ttt_winner_x', { nick: this.data.gameWinner });
                 vector = winBoard[ind];
                 this.data.gameOver = true;
             }
 
             if (x.every((y) => y === 'O')) {
-                this.data.gameMessage = t('ttt_winner_o', { nick: this.getWinnerNickFromMarker('O') });
+                this.data.gameWinner = this.getWinnerNickFromMarker('O');
+                this.data.gameMessage = t('ttt_winner_o', { nick: this.data.gameWinner });
                 vector = winBoard[ind];
                 this.data.gameOver = true;
             }
@@ -90,6 +92,7 @@ export default class TicTacToe {
         if (!this.data.gameOver && isDraw) {
             this.data.gameMessage = t('ttt_winner_draw');
             this.data.gameDraw = true;
+            this.data.gameWinner = '';
             this.data.gameOver = true;
         }
 
@@ -137,12 +140,24 @@ export default class TicTacToe {
         this.data.setLocalPlayer = val;
     }
 
+    getLocalPlayer() {
+        return this.data.localPlayer;
+    }
+
     getRemotePlayer() {
         return this.data.remotePlayer;
     }
 
     setRemotePlayer(val) {
         this.data.remotePlayer = val;
+    }
+
+    getGameDraw() {
+        return this.data.gameDraw;
+    }
+
+    getGameWinner() {
+        return this.data.gameWinner;
     }
 
     getStartPlayer() {

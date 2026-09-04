@@ -34,6 +34,7 @@
 <script>
 
 import * as Utils from '../libs/Utils.js';
+import { announceGameStart, completeGame } from '../../shared/reportGameResult.js';
 
 export default {
     computed: {
@@ -62,7 +63,13 @@ export default {
                 game.incrementGameTurn();
                 game.checkGame();
                 // eslint-disable-next-line no-undef
-                if (game.getGameOver()) kiwi.emit('plugin-kiwi-games.game-completed', { game: 'tictactoe' });
+                if (game.getGameOver()) {
+                    completeGame(buffer.getNetwork(), {
+                        game: 'tictactoe',
+                        players: [game.getLocalPlayer(), game.getRemotePlayer()],
+                        winner: game.getGameDraw() ? null : (game.getGameWinner() || null),
+                    });
+                }
                 if (!game.getGameOver() && !game.isMyTurn()) {
                     game.setTurnMessage();
                 }
@@ -81,8 +88,10 @@ export default {
                 let startPlayer = Math.floor(Math.random() * 2) === 0 ? network.nick : remotePlayer;
                 game.startGame(startPlayer);
                 game.setTurnMessage();
-                // eslint-disable-next-line no-undef
-                kiwi.emit('plugin-kiwi-games.game-started', { game: 'tictactoe' });
+                announceGameStart(network, {
+                    game: 'tictactoe',
+                    players: [network.nick, remotePlayer],
+                });
                 Utils.sendData(network, remotePlayer, {
                     cmd: 'invite_accepted', startPlayer: startPlayer,
                 });

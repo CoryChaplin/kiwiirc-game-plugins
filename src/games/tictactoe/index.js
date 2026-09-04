@@ -2,6 +2,16 @@ import * as Utils from './libs/Utils.js';
 import GameButton from './components/GameButton.vue';
 import GameComponent from './components/GameComponent.vue';
 import { t } from '../shared/locales.js';
+import { announceGameStart, completeGame } from '../shared/reportGameResult.js';
+
+function reportTictactoeResult(network, game) {
+    if (!game) return;
+    completeGame(network, {
+        game: 'tictactoe',
+        players: [game.getLocalPlayer(), game.getRemotePlayer()],
+        winner: game.getGameDraw() ? null : (game.getGameWinner() || null),
+    });
+}
 
 export function init(kiwi, config) {
     const cfg = { button: true, command: false, ...config };
@@ -98,7 +108,10 @@ export function init(kiwi, config) {
             game.startGame(data.startPlayer);
             game.setInviteSent(false);
             game.setTurnMessage();
-            kiwi.emit('plugin-kiwi-games.game-started', { game: 'tictactoe' });
+            announceGameStart(network, {
+                game: 'tictactoe',
+                players: [game.getLocalPlayer(), game.getRemotePlayer()],
+            });
             if (!mediaViewerOpen && kiwi.state.getActiveBuffer().name === game.getRemotePlayer()) {
                 kiwi.emit('mediaviewer.show', { component: GameComponent });
             }
@@ -125,7 +138,7 @@ export function init(kiwi, config) {
                     game.incrementGameTurn();
                     game.checkGame();
                     if (game.getGameOver()) {
-                        kiwi.emit('plugin-kiwi-games.game-completed', { game: 'tictactoe' });
+                        reportTictactoeResult(network, game);
                     }
                 }
                 if (!game.getGameOver()) {

@@ -186,6 +186,25 @@
 import * as Utils from '../libs/Utils.js';
 import { floodFillImageData, hexToRgb } from '../libs/canvasFloodFill.js';
 import GameFeedback from '../../shared/components/GameFeedback.vue';
+import { announceGameStart, completeGame } from '../../shared/reportGameResult.js';
+
+function pictionaryWinner(game) {
+  const scores = game.getScoresByNick() || {};
+  const players = (game.getParticipants && game.getParticipants()) || Object.keys(scores);
+  let best = -Infinity;
+  const winners = [];
+  players.forEach((nick) => {
+    const score = typeof scores[nick] === 'number' ? scores[nick] : 0;
+    if (score > best) {
+      best = score;
+      winners.length = 0;
+      winners.push(nick);
+    } else if (score === best) {
+      winners.push(nick);
+    }
+  });
+  return winners.length === 1 ? winners[0] : null;
+}
 
 export default {
   components: { GameFeedback },
@@ -649,6 +668,10 @@ export default {
         const drawer = Math.random() < 0.5 ? network.nick : peer;
         game.startGame(drawer);
         Utils.sendData(network, peer, { cmd: 'invite_accepted', drawer });
+        announceGameStart(network, {
+          game: 'pictionary',
+          players: [network.nick, peer],
+        });
       } else {
         Utils.sendData(network, peer, { cmd: 'invite_declined' });
         kiwi.emit('mediaviewer.hide');
@@ -696,7 +719,10 @@ export default {
       game.setParticipants(payload.participants);
       game.startGame(payload.drawer, payload.turnOrder, payload.turnsPlayedByNick, payload.scoresByNick);
       game.setInviteSent(false);
-      kiwi.emit('plugin-kiwi-games.game-started', { game: 'pictionary' });
+      announceGameStart(network, {
+        game: 'pictionary',
+        players: payload.participants.slice(),
+      });
       kiwi.state.addMessage(buffer, {
         nick: '*',
         message: kiwi.i18n.t('kiwi-games:pict_game_start', { drawer }),
@@ -714,7 +740,13 @@ export default {
       if (!payload) return;
       game.applyNextTurnPayload(payload);
       if (payload.finished && game.getGameOver()) {
-        kiwi.emit('plugin-kiwi-games.game-completed', { game: 'pictionary' });
+        const scores = game.getScoresByNick() || {};
+        const players = (game.getParticipants && game.getParticipants()) || Object.keys(scores);
+        completeGame(network, {
+          game: 'pictionary',
+          players: players.slice(),
+          winner: pictionaryWinner(game),
+        });
       }
       if (game.getShowGame() && !game.getGameOver()) {
         kiwi.state.addMessage(buffer, {

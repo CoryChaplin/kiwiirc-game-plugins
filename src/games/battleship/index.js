@@ -1,6 +1,16 @@
 import * as Utils from './libs/Utils.js';
 import GameComponent from './components/GameComponent.vue';
 import { t } from '../shared/locales.js';
+import { announceGameStart, completeGame } from '../shared/reportGameResult.js';
+
+function reportBattleshipResult(network, game) {
+    if (!game) return;
+    completeGame(network, {
+        game: 'battleship',
+        players: [game.getLocalPlayer(), game.getRemotePlayer()],
+        winner: game.getGameWinner() || null,
+    });
+}
 
 export function init(kiwi, config) {
     const cfg = { button: true, command: true, ...config };
@@ -105,7 +115,10 @@ export function init(kiwi, config) {
             });
             game.startGame(data.startPlayer);
             game.setInviteSent(false);
-            kiwi.emit('plugin-kiwi-games.game-started', { game: 'battleship' });
+            announceGameStart(network, {
+                game: 'battleship',
+                players: [game.getLocalPlayer(), game.getRemotePlayer()],
+            });
             if (!mediaViewerOpen && kiwi.state.getActiveBuffer().name === game.getRemotePlayer()) {
                 kiwi.emit('mediaviewer.show', { component: GameComponent });
             }
@@ -151,7 +164,7 @@ export function init(kiwi, config) {
             }
             if (result.allSunk) {
                 game.setWinner(event.nick);
-                kiwi.emit('plugin-kiwi-games.game-completed', { game: 'battleship' });
+                reportBattleshipResult(network, game);
             }
             Utils.sendData(network, game.getRemotePlayer(), {
                 cmd: 'fire_result',
@@ -194,7 +207,7 @@ export function init(kiwi, config) {
                     cmd: 'fleet_reveal',
                     fleetCells: game.getFleetCellsForReveal(),
                 });
-                kiwi.emit('plugin-kiwi-games.game-completed', { game: 'battleship' });
+                reportBattleshipResult(network, game);
             } else {
                 game.incrementGameTurn();
                 game.setTurnMessage();

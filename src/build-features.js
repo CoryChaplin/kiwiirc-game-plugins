@@ -1,0 +1,18 @@
+/* global
+    __KIWI_BUILD_GAME_TICTACTOE__,
+    __KIWI_BUILD_GAME_CONNECTFOUR__,
+    __KIWI_BUILD_GAME_PICTIONARY__,
+    __KIWI_BUILD_GAME_BATTLESHIP__,
+    __KIWI_BUILD_GAME_CHESS__,
+    __KIWI_BUILD_MANAGEMENT__
+*/
+
+export const BUILD_GAMES = {
+    tictactoe: __KIWI_BUILD_GAME_TICTACTOE__,
+    connectfour: __KIWI_BUILD_GAME_CONNECTFOUR__,
+    pictionary: __KIWI_BUILD_GAME_PICTIONARY__,
+    battleship: __KIWI_BUILD_GAME_BATTLESHIP__,
+    chess: __KIWI_BUILD_GAME_CHESS__,
+};
+
+export const BUILD_MANAGEMENT = __KIWI_BUILD_MANAGEMENT__;

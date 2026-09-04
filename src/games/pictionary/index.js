@@ -2,6 +2,36 @@ import * as Utils from './libs/Utils.js';
 import GameComponent from './components/GameComponent.vue';
 import Pictionary from './libs/Pictionary.js';
 import { t } from '../shared/locales.js';
+import { announceGameStart, completeGame } from '../shared/reportGameResult.js';
+
+function pictionaryWinner(game) {
+  const scores = game.getScoresByNick() || {};
+  const players = (game.getParticipants && game.getParticipants()) || Object.keys(scores);
+  let best = -Infinity;
+  const winners = [];
+  players.forEach((nick) => {
+    const score = typeof scores[nick] === 'number' ? scores[nick] : 0;
+    if (score > best) {
+      best = score;
+      winners.length = 0;
+      winners.push(nick);
+    } else if (score === best) {
+      winners.push(nick);
+    }
+  });
+  return winners.length === 1 ? winners[0] : null;
+}
+
+function reportPictionaryResult(network, game) {
+  if (!game) return;
+  const scores = game.getScoresByNick() || {};
+  const players = (game.getParticipants && game.getParticipants()) || Object.keys(scores);
+  completeGame(network, {
+    game: 'pictionary',
+    players: players.slice(),
+    winner: pictionaryWinner(game),
+  });
+}
 
 function echoDrawCmd(cmd) {
   return cmd === 'stroke' || cmd === 'fill' || cmd === 'clear' || cmd === 'undo';
@@ -291,6 +321,10 @@ export function init(kiwi, config) {
         });
         game.startGame(data.drawer);
         game.setInviteSent(false);
+        announceGameStart(network, {
+          game: 'pictionary',
+          players: [network.nick, event.nick],
+        });
         const active = kiwi.state.getActiveBuffer();
         if (!mediaViewerOpen && active && active.name === game.getTagTarget()) {
           kiwi.emit('mediaviewer.show', { component: GameComponent });
@@ -509,7 +543,13 @@ export function init(kiwi, config) {
           Array.isArray(data.wordsUsedThisGame) ? data.wordsUsedThisGame : undefined,
         );
         game.setInviteSent(false);
-        kiwi.emit('plugin-kiwi-games.game-started', { game: 'pictionary' });
+        const startPlayers = Array.isArray(data.participants) && data.participants.length
+          ? data.participants
+          : (game.getParticipants && game.getParticipants()) || [];
+        announceGameStart(network, {
+          game: 'pictionary',
+          players: startPlayers.slice(),
+        });
         kiwi.state.addMessage(buffer, {
           nick: '*',
           message: t('pict_game_start', { drawer: data.drawer }),
@@ -648,7 +688,7 @@ export function init(kiwi, config) {
         }
         game.applyNextTurnPayload(data);
         if (data.finished && game.getGameOver()) {
-          kiwi.emit('plugin-kiwi-games.game-completed', { game: 'pictionary' });
+          reportPictionaryResult(network, game);
         }
         if (game.getShowGame() && !game.getGameOver()) {
           kiwi.state.addMessage(buffer, {
