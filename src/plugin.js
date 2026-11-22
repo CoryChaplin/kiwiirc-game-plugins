@@ -23,7 +23,7 @@ import { coerceBool, getGameConfig, getPluginSettings } from './games/shared/plu
  * Runtime (KiwiIRC config.json), among modules already compiled in:
  *   "plugin_kiwi_games": {
  *     "tictactoe":   { "enabled": true, "button": true, "command": true },
- *     "management":  { "enabled": true, "button": true, "salon": "#jeux", "gameMasterNick": "gameMaster" }
+ *     "management":  { "enabled": true, "button": true, "gameMasterNick": "gameMaster" }
  *   }
  * Also accepted (Kiwi convention = plugin name): "kiwi-games": { ... }
  *
@@ -81,7 +81,6 @@ kiwi.plugin('kiwi-games', function(kiwi) {
         const mgmtDefaults = {
             enabled: true,
             button: true,
-            salon: '#jeux',
             gameMasterNick: 'gameMaster',
             requestTimeoutMs: 8000,
         };
@@ -92,13 +91,13 @@ kiwi.plugin('kiwi-games', function(kiwi) {
         };
         mgmtCfg.enabled = coerceBool(mgmtCfg.enabled, true);
         mgmtCfg.button = coerceBool(mgmtCfg.button, true);
-        if (typeof mgmtCfg.salon === 'string') {
-            mgmtCfg.salon = mgmtCfg.salon.trim();
+        if (typeof mgmtCfg.gameMasterNick === 'string') {
+            mgmtCfg.gameMasterNick = mgmtCfg.gameMasterNick.trim();
         } else {
-            mgmtCfg.salon = '';
+            mgmtCfg.gameMasterNick = '';
         }
         if (mgmtRaw === false) mgmtCfg.enabled = false;
-        if (mgmtCfg.enabled && mgmtCfg.salon) {
+        if (mgmtCfg.enabled && mgmtCfg.gameMasterNick) {
             initManagement(kiwi, mgmtCfg);
         }
     }

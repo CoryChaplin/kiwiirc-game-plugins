@@ -1,5 +1,4 @@
 /* global kiwi:true */
-import { getConfig } from './config.js';
 import { nicksMatch } from './network.js';
 
 const ISON_TIMEOUT_MS = 4000;
@@ -36,32 +35,6 @@ export function markGameMasterOnline(network, botNick) {
 export function markGameMasterOffline(network, botNick) {
     if (!botNick) return;
     writeCache(cacheKey(network, botNick), false, CACHE_OFFLINE_MS);
-}
-
-function salonUsers(network, salon) {
-    if (!network || !salon) return [];
-    const getBuffer = kiwi.state && kiwi.state.getBufferByName;
-    const buffer = typeof getBuffer === 'function'
-        ? getBuffer.call(kiwi.state, network.id, salon)
-        : null;
-    if (!buffer) return [];
-    let rawUsers = null;
-    if (Array.isArray(buffer.users)) rawUsers = buffer.users;
-    else if (buffer.users && typeof buffer.users === 'object') rawUsers = Object.values(buffer.users);
-    else if (typeof buffer.getUsers === 'function') rawUsers = buffer.getUsers();
-    if (!Array.isArray(rawUsers)) return [];
-    return rawUsers.map((u) => {
-        if (!u) return '';
-        if (typeof u === 'string') return u;
-        if (typeof u.nick === 'string') return u.nick;
-        return '';
-    }).filter(Boolean);
-}
-
-function botInSalon(network, botNick) {
-    const salon = getConfig().salon;
-    const irc = network && network.ircClient;
-    return salonUsers(network, salon).some((nick) => nicksMatch(nick, botNick, irc));
 }
 
 function nicksFromIsonEvent(event) {
@@ -152,8 +125,8 @@ function probeIson(network, botNick) {
 }
 
 /**
- * True if gameMaster is online. Uses the salon nicklist when possible,
- * otherwise ISON. Results are cached so we do not ISON on every click.
+ * True if gameMaster is online. ISON only: TAGMSG is sent to the bot nick.
+ * Results are cached so we do not ISON on every click.
  */
 export function ensureGameMasterOnline(network, botNick) {
     const nick = typeof botNick === 'string' ? botNick.trim() : '';
@@ -162,11 +135,6 @@ export function ensureGameMasterOnline(network, botNick) {
     const key = cacheKey(network, nick);
     const cached = readCache(key);
     if (cached != null) return Promise.resolve(cached);
-
-    if (botInSalon(network, nick)) {
-        writeCache(key, true, CACHE_ONLINE_MS);
-        return Promise.resolve(true);
-    }
 
     const pending = inflight.get(key);
     if (pending) return pending;

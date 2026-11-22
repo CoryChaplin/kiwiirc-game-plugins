@@ -38,10 +38,7 @@ function resolveBuildFeatures(env = {}) {
             management = false;
             continue;
         }
-        if (!KNOWN_GAMES.includes(id)) {
-            console.warn(`[kiwi-games] unknown exclude ignored: "${id}"`);
-            continue;
-        }
+        if (!KNOWN_GAMES.includes(id)) continue;
         games[id] = false;
     }
 
@@ -51,10 +48,7 @@ function resolveBuildFeatures(env = {}) {
             management = true;
             continue;
         }
-        if (!KNOWN_GAMES.includes(id)) {
-            console.warn(`[kiwi-games] unknown include ignored: "${id}"`);
-            continue;
-        }
+        if (!KNOWN_GAMES.includes(id)) continue;
         games[id] = true;
     }
 
@@ -72,17 +66,6 @@ function parseList(value) {
         .filter(Boolean);
 }
 
-function logBuildFeatures(features) {
-    const enabled = KNOWN_GAMES.filter((id) => features.games[id]);
-    const disabled = KNOWN_GAMES.filter((id) => !features.games[id]);
-    console.log('[kiwi-games] Build features:');
-    console.log(`  games:       ${enabled.length ? enabled.join(', ') : '(none)'}`);
-    if (disabled.length) {
-        console.log(`  excluded:    ${disabled.join(', ')}`);
-    }
-    console.log(`  management:  ${features.management ? 'yes' : 'no (opt-in)'}`);
-}
-
 /** DefinePlugin entries (literal true/false for tree-shaking). */
 function buildDefinePluginEntries(features) {
     const defs = {
@@ -98,6 +81,5 @@ function buildDefinePluginEntries(features) {
 module.exports = {
     KNOWN_GAMES,
     resolveBuildFeatures,
-    logBuildFeatures,
     buildDefinePluginEntries,
 };

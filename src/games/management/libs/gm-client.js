@@ -2,7 +2,7 @@
 import { getConfig } from './config.js';
 import { GM_TAG } from './constants.js';
 import { decodeJsonBase64Url, encodeJsonBase64Url } from './base64url.js';
-import { channelNamesMatch, nicksMatch } from './network.js';
+import { nicksMatch } from './network.js';
 import { t } from '../../shared/locales.js';
 import { ensureGameMasterOnline, markGameMasterOnline, markGameMasterOffline } from './bot-presence.js';
 
@@ -35,8 +35,7 @@ function sendTagmsg(ircClient, target, tags) {
             ircClient.raw(message);
             return true;
         }
-    } catch (err) {
-        console.warn('[gm-client] TAGMSG send failed', err);
+    } catch (_) {
         return false;
     }
     return false;
@@ -49,12 +48,6 @@ function resolveNetwork(preferred) {
     const networks = kiwi.state.networks;
     if (!Array.isArray(networks)) return null;
     return networks.find((n) => n.ircClient) || null;
-}
-
-function eventTarget(event) {
-    return event.target
-        || (Array.isArray(event.params) && event.params[0])
-        || '';
 }
 
 export class GmClient {
@@ -145,15 +138,6 @@ export class GmClient {
         if (!decoded || typeof decoded !== 'object') return;
 
         const irc = network && network.ircClient;
-        const target = eventTarget(event);
-        const salon = getConfig().salon;
-
-        // Channel +gm is ignored: patches arrive privately. A salon TAGMSG
-        // would otherwise make every plugin client refresh.
-        if (channelNamesMatch(target, salon, irc && irc.caseCompare)) {
-            return;
-        }
-
         const botNick = getConfig().gameMasterNick;
         if (!nicksMatch(event.nick, botNick, irc)) return;
         markGameMasterOnline(network, botNick);

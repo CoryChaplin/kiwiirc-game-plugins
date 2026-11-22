@@ -30,11 +30,10 @@ export function nicksMatch(a, b, irc) {
     return String(a).toLowerCase() === String(b).toLowerCase();
 }
 
-export function addChannelSystemMessage(network, channel, message) {
-    if (!network || !channel || !message) return;
-    const getBuffer = kiwi.state && kiwi.state.getBufferByName;
-    const buffer = typeof getBuffer === 'function'
-        ? getBuffer.call(kiwi.state, network.id, channel)
+export function addCurrentBufferMessage(message) {
+    if (!message) return;
+    const buffer = kiwi.state && typeof kiwi.state.getActiveBuffer === 'function'
+        ? kiwi.state.getActiveBuffer()
         : null;
     if (!buffer) return;
     kiwi.state.addMessage(buffer, { nick: '*', message, type: 'message' });

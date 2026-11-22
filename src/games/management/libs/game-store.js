@@ -1,19 +1,22 @@
 /* global kiwi:true */
-import { GAME_IDS, GAME_LABELS } from './constants.js';
-import { getConfig } from './config.js';
-import { addChannelSystemMessage } from './network.js';
+import { BUILD_GAMES } from '../../../build-features.js';
+import { addCurrentBufferMessage } from './network.js';
 import { t } from '../../shared/locales.js';
 import { isGameEnabled } from '../../shared/pluginConfig.js';
 
 const REFRESH_COOLDOWN_MS = 8000;
 const SCORES_COOLDOWN_MS = 8000;
 
+function builtGameIds() {
+    return Object.keys(BUILD_GAMES).filter((id) => BUILD_GAMES[id]);
+}
+
 function emptyGames() {
-    return GAME_IDS.filter((id) => isGameEnabled(id)).map((id) => ({
+    return builtGameIds().filter((id) => isGameEnabled(id)).map((id) => ({
         id,
-        label: GAME_LABELS[id] || id,
+        label: gameDisplayName(id),
         minPlayers: 2,
-        maxPlayers: id === 'pictionary' ? 10 : 2,
+        maxPlayers: 2,
         queueCount: 0,
         openLobbies: 0,
     }));
@@ -132,11 +135,11 @@ function gameDisplayName(gameId) {
     if (translated && translated.indexOf('dropdown_') === -1) {
         return translated;
     }
-    return GAME_LABELS[id] || id;
+    return id;
 }
 
-function postSalon(network, message) {
-    addChannelSystemMessage(network, getConfig().salon, message);
+function postCurrent(message) {
+    addCurrentBufferMessage(message);
 }
 
 export class GameStore {
@@ -299,13 +302,6 @@ export class GameStore {
 
         if (op === 'queue.update') {
             this.applyQueuePatch(data);
-            const nick = data.nick && String(data.nick);
-            if (data.action === 'joined' && nick) {
-                postSalon(network, t('mgmt_queue_peer', {
-                    nick,
-                    game: gameDisplayName(data.game),
-                }));
-            }
             return;
         }
 
@@ -319,7 +315,7 @@ export class GameStore {
 
         if (op === 'lobby.ready') {
             if (lobby.id) this.upsertLobby(lobby);
-            postSalon(network, t('mgmt_push_ready', { id, game }));
+            postCurrent(t('mgmt_push_ready', { id, game }));
             return;
         }
         if (op === 'lobby.open') {
@@ -333,14 +329,14 @@ export class GameStore {
                 { game: data.game },
                 data.id || data.lobbyId,
             );
-            postSalon(network, t('mgmt_push_open', { id, game: game || gameDisplayName(data.game) }));
+            postCurrent(t('mgmt_push_open', { id, game: game || gameDisplayName(data.game) }));
             return;
         }
         if (op === 'lobby.kicked') {
             const kickedId = data.lobbyId || data.id;
             this.removeMeLobby(kickedId);
             this.removeLobby(kickedId, data.game);
-            postSalon(network, t('mgmt_push_kicked', {
+            postCurrent(t('mgmt_push_kicked', {
                 id: kickedId,
                 game: gameDisplayName(data.game),
             }));
@@ -353,7 +349,7 @@ export class GameStore {
             this.removeLobby(launchedId, (existing && existing.game) || data.game);
             this.removeMeLobby(launchedId);
             this.removeNicksFromQueues(nicks);
-            postSalon(network, t('mgmt_push_launched', {
+            postCurrent(t('mgmt_push_launched', {
                 id: launchedId,
                 game: (existing && existing.label) || gameDisplayName(data.game || (existing && existing.game)),
             }));
@@ -366,7 +362,7 @@ export class GameStore {
                 .filter(Boolean);
             (data.lobbies || []).forEach((lobbyId) => this.removeLobby(String(lobbyId)));
             this.removeNicksFromQueues(nicks);
-            postSalon(network, t('mgmt_push_start'));
+            postCurrent(t('mgmt_push_start'));
         }
     }
 
@@ -488,7 +484,7 @@ export class GameStore {
                 this.addMeLobby(lobby.id);
                 if (lobby.status === 'ready') {
                     const { id, game } = lobbyEventLabel(lobby);
-                    postSalon(network, t('mgmt_push_ready', { id, game }));
+                    postCurrent(t('mgmt_push_ready', { id, game }));
                 }
             }
             return;
@@ -520,7 +516,7 @@ export class GameStore {
             this.removeNicksFromQueues(nicks);
             if (lobby.id || id) {
                 const { id: lid, game } = lobbyEventLabel(lobby, id);
-                postSalon(network, t('mgmt_push_launched', { id: lid, game }));
+                postCurrent(t('mgmt_push_launched', { id: lid, game }));
             }
         }
     }
@@ -698,12 +694,13 @@ export class GameStore {
     applyState(data) {
         if (Array.isArray(data.games) && data.games.length) {
             this.state.games = data.games
-                .filter((g) => g && isGameEnabled(String(g.id)))
+                .filter((g) => g && BUILD_GAMES[String(g.id)] && isGameEnabled(String(g.id)))
                 .map((g) => {
                     const id = String(g.id);
+                    const named = gameDisplayName(id);
                     return {
                         id,
-                        label: GAME_LABELS[id] || String(g.label || id),
+                        label: named !== id ? named : String(g.label || id),
                         minPlayers: Number(g.minPlayers) || 2,
                         maxPlayers: Number(g.maxPlayers) || 2,
                         queueCount: Number(g.queueCount) || 0,

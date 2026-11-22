@@ -2,8 +2,9 @@ import { setConfig } from './libs/config.js';
 import { defaultConfig } from './libs/constants.js';
 import { GmClient } from './libs/gm-client.js';
 import { initGameStore } from './libs/game-store.js';
-import { activateManagementSalon, setBotOnlineCheck } from '../shared/reportGameResult.js';
+import { activateGameMaster, setBotOnlineCheck } from '../shared/reportGameResult.js';
 import { ensureGameMasterOnline } from './libs/bot-presence.js';
+import { startBotChannelTracking } from './libs/bot-channels.js';
 import HeaderGamesButton from './components/HeaderGamesButton.vue';
 
 /**
@@ -13,8 +14,10 @@ import HeaderGamesButton from './components/HeaderGamesButton.vue';
 export function init(kiwi, config) {
     const cfg = { ...defaultConfig, ...config };
     setConfig(cfg);
-    activateManagementSalon(cfg.salon, cfg.gameMasterNick);
+    activateGameMaster(cfg.gameMasterNick);
     setBotOnlineCheck((network, nick) => ensureGameMasterOnline(network, nick));
+
+    startBotChannelTracking();
 
     const client = new GmClient();
     client.bind();

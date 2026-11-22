@@ -5,14 +5,12 @@ const TerserPlugin = require('terser-webpack-plugin');
 const CopyWebpackPlugin = require('copy-webpack-plugin');
 const {
     resolveBuildFeatures,
-    logBuildFeatures,
     buildDefinePluginEntries,
 } = require('./scripts/resolve-build-features');
 
 module.exports = (env = {}, argv = {}) => {
     const mode = argv.mode || 'production';
     const features = resolveBuildFeatures(env);
-    logBuildFeatures(features);
 
     return {
         mode,

@@ -16,8 +16,7 @@ Under `plugin_kiwi_games.management`:
 |---|---|---|
 | `enabled` | `true` | Runtime toggle |
 | `button` | `true` | Channel header button |
-| `salon` | `#jeux` | Channel where the header button appears |
-| `gameMasterNick` | `gameMaster` | Bot nick to send TAGMSG to |
+| `gameMasterNick` | `gameMaster` | Bot nick. Required for the module to start. TAGMSG target. The header button is shown on every channel the bot is in (WHOIS after ISON) |
 | `requestTimeoutMs` | `8000` | Client-side request timeout |
 
 ## Transport
@@ -36,7 +35,7 @@ TAGMSG gameMaster +gm=<base64url(JSON)>
 
 The client only accepts responses whose `nick` matches `gameMasterNick` (IRC case rules when available).
 
-Before any private TAGMSG to the bot, the client checks that the nick is online: salon nicklist if the bot is already in the channel, otherwise **`ISON`**. If the nick is missing, **nothing is sent** (avoids `401 No such nick` spam). The result is cached for a few seconds.
+Before any private TAGMSG to the bot, and before the connection WHOIS, the client checks that the nick is online with **`ISON`**. If the nick is missing, **nothing is sent** (avoids `401 No such nick` spam). The result is cached for a few seconds.
 
 ## Request (client → bot)
 
@@ -89,13 +88,13 @@ When a P2P game starts, the client sends `game.start` **privately** to the bot (
 
 | `op` | Who receives it | Client action |
 |---|---|---|
-| `queue.update` | Other nicks already in that queue | Delta only: `{ game, action, nick, queueCount }`. Add/remove that nick. Same shape on the `queue.join` / `leave` response. On `joined`, salon system line |
+| `queue.update` | Other nicks already in that queue | Delta only: `{ game, action, nick, queueCount }`. Add/remove that nick. Same shape on the `queue.join` / `leave` response. No chat line when someone joins |
 | `lobby.update` | Remaining members + that game's queue (not nicks who already got ready/open/kicked/launched) | Compact only: `{ id, game, status, players: [nicks] }` or `{ id, closed: true }` |
-| `lobby.ready` | Other lobby members (not the nick that filled the lobby) | Full lobby (includes `launchCommand`) + salon system line |
-| `lobby.open` | Other remaining members after a leave or kick frees a slot | Compact `{ id, status: "open", players: [nicks] }` + salon system line |
-| `lobby.kicked` | The excluded player | `{ id }` / `{ lobbyId }` — drop from `me` and local list + salon system line |
-| `lobby.launched` | Other **members** after `lobby.launch` (one notif each). Queue watchers get `lobby.update` `{ id, closed: true }` instead | `{ id }` — remove lobby using the local player list + salon system line |
-| `start` | Nicks removed by `game.start` | Drop those nicks/lobbies locally + salon system line |
+| `lobby.ready` | Other lobby members (not the nick that filled the lobby) | Full lobby (includes `launchCommand`) + system line on the active buffer |
+| `lobby.open` | Other remaining members after a leave or kick frees a slot | Compact `{ id, status: "open", players: [nicks] }` + system line on the active buffer |
+| `lobby.kicked` | The excluded player | `{ id }` / `{ lobbyId }` — drop from `me` and local list + system line on the active buffer |
+| `lobby.launched` | Other **members** after `lobby.launch` (one notif each). Queue watchers get `lobby.update` `{ id, closed: true }` instead | `{ id }` — remove lobby using the local player list + system line on the active buffer |
+| `start` | Nicks removed by `game.start` | Drop those nicks/lobbies locally + system line on the active buffer |
 
 Do **not** follow a push with a `state` request. The client never sends `notifySalon` or any other TAGMSG to the channel.
 
@@ -243,7 +242,7 @@ On `lobby.launch`, each nick gets **one** push: members receive `lobby.launched`
 4. **Apply** queue/lobby mutations and persist state.
 5. **Reply** to the requesting nick with `TAGMSG` + `+gm` (same `id`), either as one JSON payload or chunked envelopes.
 6. **Push** `queue.update` / `lobby.update` / `lobby.ready` / `lobby.open` / `lobby.kicked` / `lobby.launched` / `start` as **private** TAGMSG to the affected nicks (no request `id`). Never to the salon.
-7. The client does not TAGMSG the salon. On `queue.update` with `action: "joined"`, clients already in that queue show a local buffer line suggesting to talk to the new player.
+7. The client does not TAGMSG a channel. A `queue.update` updates the local list only. No buffer line is shown when someone joins the same queue.
 
 Peer-to-peer game invites (`/<game> <nick>`) are handled by the game plugins. When the invite is accepted **and management is active**, the client sends `game.start` privately to the bot.
 

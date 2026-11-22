@@ -237,8 +237,6 @@ export function init(kiwi, config) {
             break;
         }
         default: {
-            // eslint-disable-next-line no-console
-            console.error('Battleship: Something bad happened', event);
             break;
         }
         }
