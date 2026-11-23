@@ -206,7 +206,7 @@
                                         type="button"
                                         class="kiwi-gm-btn kiwi-gm-btn--small"
                                         :disabled="state.loading || isLobbyFull(lobby)"
-                                        @click="joinLobby(lobby.id)"
+                                        @click="joinLobby(lobby)"
                                     >{{ $t('kiwi-games:mgmt_join') }}</button>
                                     <template v-else-if="inLobby(lobby.id)">
                                         <button
@@ -449,8 +449,8 @@ export default {
             const max = gameId === 'pictionary' ? Number(this.createMaxPlayers) || 4 : undefined;
             return this.store.lobbyCreate(gameId, max, this.network);
         },
-        joinLobby(lobbyId) {
-            return this.store.lobbyJoin(lobbyId, this.network);
+        joinLobby(lobby) {
+            return this.store.lobbyJoin(lobby, this.network);
         },
         leaveLobby(lobbyId) {
             return this.store.lobbyLeave(lobbyId, this.network);

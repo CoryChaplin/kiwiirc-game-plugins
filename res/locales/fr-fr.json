@@ -9,6 +9,7 @@
     "common_feedback_placeholder": "Dis-nous ce qui était bien ou à améliorer...",
     "common_feedback_send": "Envoyer mon retour",
     "common_feedback_sent": "Merci, ton retour a été envoyé.",
+    "common_game_load_error": "Impossible de charger ce jeu. Réessaie dans un instant.",
 
     "dropdown_title": "Jeux",
     "dropdown_tictactoe": "Morpion",

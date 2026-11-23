@@ -3,6 +3,7 @@ import { BUILD_GAMES } from '../../../build-features.js';
 import { addCurrentBufferMessage } from './network.js';
 import { t } from '../../shared/locales.js';
 import { isGameEnabled } from '../../shared/pluginConfig.js';
+import { ensureGameLoaded } from '../../shared/game-loader.js';
 
 const REFRESH_COOLDOWN_MS = 8000;
 const SCORES_COOLDOWN_MS = 8000;
@@ -425,6 +426,7 @@ export class GameStore {
     }
 
     queueJoin(game, network) {
+        ensureGameLoaded(game);
         return this.mutate('queue.join', { game }, network);
     }
 
@@ -433,13 +435,21 @@ export class GameStore {
     }
 
     lobbyCreate(game, maxPlayers, network) {
+        ensureGameLoaded(game);
         const fields = { game };
         if (typeof maxPlayers === 'number') fields.maxPlayers = maxPlayers;
         return this.mutate('lobby.create', fields, network);
     }
 
     lobbyJoin(lobby, network) {
-        return this.mutate('lobby.join', { lobby }, network);
+        const id = lobby && typeof lobby === 'object' ? lobby.id : lobby;
+        const game = lobby && typeof lobby === 'object' ? lobby.game : '';
+        if (game) ensureGameLoaded(game);
+        else {
+            const known = this.findLobby(id);
+            if (known && known.game) ensureGameLoaded(known.game);
+        }
+        return this.mutate('lobby.join', { lobby: id }, network);
     }
 
     lobbyLeave(lobby, network) {
@@ -737,6 +747,17 @@ export class GameStore {
         this.state.meLobbies = Array.isArray(data.lobbies)
             ? data.lobbies.map((l) => String((l && l.id) || l || '')).filter(Boolean)
             : [];
+        this.preloadJoinedGames();
+    }
+
+    preloadJoinedGames() {
+        this.state.meQueues.forEach((gameId) => {
+            ensureGameLoaded(gameId);
+        });
+        this.state.meLobbies.forEach((lobbyId) => {
+            const lobby = this.findLobby(lobbyId);
+            if (lobby && lobby.game) ensureGameLoaded(lobby.game);
+        });
     }
 }
 

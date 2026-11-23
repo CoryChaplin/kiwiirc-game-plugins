@@ -64,10 +64,17 @@ export default class Locales {
  * utilisée dans plugin-asl.
  */
 export function getPluginBasePath() {
-    const scripts = document.getElementsByTagName('script');
-    if (!scripts.length) return '';
-    const scriptPath = scripts[scripts.length - 1].src || '';
-    return scriptPath.substr(0, scriptPath.lastIndexOf('/') + 1);
+    const current = typeof document !== 'undefined'
+        && document.currentScript
+        && document.currentScript.src;
+    let scriptPath = current || '';
+    if (!scriptPath) {
+        const scripts = document.getElementsByTagName('script');
+        if (!scripts.length) return '';
+        scriptPath = scripts[scripts.length - 1].src || '';
+    }
+    if (!scriptPath) return '';
+    return scriptPath.slice(0, scriptPath.lastIndexOf('/') + 1);
 }
 
 /**
