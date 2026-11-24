@@ -4,10 +4,6 @@ import { encodeJsonBase64Url } from './base64url.js';
 const GM_TAG = '+gm';
 const BRIDGE_KEY = '__kiwiGamesBridge';
 
-/**
- * Le script du jeu et le script principal sont deux bundles : chacun a sa
- * copie de ce module. Le nick du bot et le contrôle ISON vivent sur window.
- */
 function managementState() {
     const root = typeof window !== 'undefined' ? window : globalThis;
     if (!root[BRIDGE_KEY]) root[BRIDGE_KEY] = {};

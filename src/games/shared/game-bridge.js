@@ -1,7 +1,7 @@
 /**
- * État partagé entre le script principal et les scripts de jeu.
- * Chaque bundle webpack a sa propre copie de ce module : l'état vit sur
- * window pour que le chargeur et le script téléchargé voient la même file.
+ * State shared by the main script and the game scripts.
+ * Each webpack bundle has its own copy of this module: the state lives on
+ * window so the loader and the downloaded script see the same queue.
  */
 
 const KEY = '__kiwiGamesBridge';
@@ -46,9 +46,7 @@ export function markGameReady(gameId) {
     waiters.forEach((fn) => {
         try {
             fn();
-        } catch (_) {
-            // Un waiter en erreur ne bloque pas les suivants.
-        }
+        } catch (_) {}
     });
 }
 

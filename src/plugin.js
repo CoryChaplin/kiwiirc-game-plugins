@@ -8,17 +8,17 @@ import { coerceBool, getGameConfig, getPluginSettings } from './games/shared/plu
 import { installGameLoader } from './games/shared/game-loader.js';
 
 /**
- * Plugin Kiwi IRC : menu pour lancer les jeux, et management si le build l'inclut.
- * Le script de chaque jeu (dist/kiwi-games/<jeu>.js) n'est téléchargé que lorsque
- * l'utilisateur invite, rejoint une file, crée ou rejoint un lobby, ou reçoit un TAGMSG.
+ * Kiwi IRC plugin: menu to start games, plus management when the build includes it.
+ * Each game script (dist/kiwi-games/<game>.js) is downloaded only when
+ * the user invites, joins a queue, creates or joins a lobby, or receives a TAGMSG.
  *
- * Build (ce qui est compilé) — build.config.json ou CLI :
+ * Build (what gets compiled) — build.config.json or CLI:
  *   yarn build
  *   yarn build --env exclude=chess,pictionary
  *   yarn build --env include=management
  *   yarn build --env config=./build.custom.json
  *
- * Runtime (KiwiIRC config.json), parmi les modules déjà compilés :
+ * Runtime (KiwiIRC config.json), among modules already compiled:
  *   "plugin_kiwi_games": {
  *     "gamesPath": "https://example/plugins/kiwi-games",
  *     "tictactoe":   { "enabled": true, "button": true, "command": true },
@@ -26,16 +26,16 @@ import { installGameLoader } from './games/shared/game-loader.js';
  *   }
  * Also accepted (Kiwi convention = plugin name): "kiwi-games": { ... }
  *
- * Chaque clé de jeu accepte :
- *   - enabled (bool) : active ou désactive le jeu (défaut : true)
- *   - button  (bool) : affiche le bouton dans le header de query (défaut : true)
- *   - command (bool) : enregistre une commande IRC /tictactoe|connectfour|pictionary <nick>
- * gamesPath (string) : dossier des scripts de jeu, sans slash final.
- *   Défaut : dossier de plugin-kiwi-games.js + "kiwi-games".
+ * Each game key accepts:
+ *   - enabled (bool): turn the game on or off (default: true)
+ *   - button  (bool): show the button in the query header (default: true)
+ *   - command (bool): register /tictactoe|connectfour|pictionary <nick>
+ * gamesPath (string): folder of game scripts, no trailing slash.
+ *   Default: folder of plugin-kiwi-games.js + "kiwi-games".
  */
 
-// Résolu à l'évaluation du module (script principal en cours d'exécution),
-// pas plus tard : un script de jeu injecté ensuite ne doit pas fausser ce chemin.
+// Resolved when this module is evaluated (the main script is running),
+// not later: a game script injected afterwards must not change this path.
 const pluginBasePath = getPluginBasePath();
 const defaultLocalesPath = pluginBasePath + 'kiwi-games/locales';
 const defaultGamesRoot = pluginBasePath + 'kiwi-games';

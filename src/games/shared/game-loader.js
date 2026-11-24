@@ -77,8 +77,8 @@ function reportLoadError(gameId) {
 }
 
 /**
- * Télécharge kiwi-games/<gameId>.js une seule fois.
- * Résout quand le script a appelé markGameReady.
+ * Downloads kiwi-games/<gameId>.js once.
+ * Resolves when the script has called markGameReady.
  */
 export function loadGame(gameId) {
     if (!canLoad(gameId)) return Promise.resolve(false);
@@ -124,8 +124,8 @@ export function ensureGameLoaded(gameId) {
 }
 
 /**
- * Pose les écouteurs légers : commande d'invitation, TAGMSG entrant.
- * Le script du jeu n'est injecté qu'à ce moment-là.
+ * Installs the light listeners: invite command and incoming TAGMSG.
+ * The game script is injected only then.
  */
 export function installGameLoader(kiwiApi, options) {
     if (installed) return;
@@ -160,9 +160,9 @@ export function installGameLoader(kiwiApi, options) {
 
         const target = event.params && event.params[0];
         const addressedToUs = target === network.nick;
-        // Un TAGMSG de salon (coups de pictionary) ne doit pas faire télécharger
-        // le jeu à tout le monde : on ne le met en file que si le chargement a déjà commencé
-        // (invitation en message privé).
+        // A channel TAGMSG (pictionary strokes) must not download the game for
+        // everyone. Queue it only when a load is already in progress
+        // (private invite).
         if (!addressedToUs && !getLoading(gameId)) return;
 
         enqueueGameEvent(gameId, {

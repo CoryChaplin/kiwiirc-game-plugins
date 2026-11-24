@@ -636,7 +636,7 @@ export default {
     50% { box-shadow: 0 0 14px 4px rgba(46, 204, 113, 0.35); }
 }
 
-/* Desktop : colonne verticale — adversaire / bandeau / vous */
+/* Desktop: vertical column — opponent / banner / you */
 @media (min-width: 520px) {
     .chess-result,
     .chess-game > .game-feedback {

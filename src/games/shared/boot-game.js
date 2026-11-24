@@ -22,9 +22,9 @@ function replayQueued(kiwiApi, gameId, queued) {
 }
 
 /**
- * Point d'entrée d'un script de jeu (kiwi-games/<id>.js).
- * Enregistre le jeu auprès de Kiwi, puis rejoue l'invitation ou le TAGMSG
- * qui a déclenché le téléchargement.
+ * Entry point of a game script (kiwi-games/<id>.js).
+ * Registers the game with Kiwi, then replays the invite or TAGMSG
+ * that triggered the download.
  */
 export function bootGame(gameId, init) {
     const root = typeof window !== 'undefined' ? window : null;
@@ -45,9 +45,7 @@ export function bootGame(gameId, init) {
                 init(kiwiApi, cfg);
                 started = true;
             }
-        } catch (_) {
-            // Une init en erreur ne doit pas bloquer le signal de chargement.
-        }
+        } catch (_) {}
 
         const queued = takeGameInbox(gameId);
         markGameReady(gameId);

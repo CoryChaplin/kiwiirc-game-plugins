@@ -1,10 +1,10 @@
 /* global kiwi:true */
 
 /**
- * Chargeur de locales pour les plugins kiwi-games.
- * Calqué sur le pattern du plugin-asl : charge les bundles JSON depuis
- * `localesPath/<lang>.json` et les enregistre auprès de kiwi.i18n sous
- * le namespace donné. Lance également le chargement du fallback en-us.
+ * Locale loader for the kiwi-games plugins.
+ * Same pattern as plugin-asl: load JSON bundles from
+ * `localesPath/<lang>.json` and register them on kiwi.i18n under
+ * the given namespace. Also loads the en-us fallback.
  */
 export default class Locales {
     constructor() {
@@ -59,9 +59,8 @@ export default class Locales {
 }
 
 /**
- * Résout le chemin de base à partir duquel le plugin a été chargé afin
- * de construire l'URL des fichiers de locales. Identique à l'astuce
- * utilisée dans plugin-asl.
+ * Resolves the base path the plugin was loaded from, used to build
+ * locale file URLs. Same trick as plugin-asl.
  */
 export function getPluginBasePath() {
     const current = typeof document !== 'undefined'
@@ -78,12 +77,12 @@ export function getPluginBasePath() {
 }
 
 /**
- * Raccourci de traduction pour le code JS (hors composants Vue).
- * Préfixe automatiquement la clé avec le namespace 'kiwi-games:'.
- * Dans les templates Vue, utiliser directement $t('kiwi-games:<clé>').
+ * Translation helper for JS code (outside Vue components).
+ * Prefixes the key with the 'kiwi-games:' namespace.
+ * In Vue templates, use $t('kiwi-games:<key>') directly.
  *
- * @param {string} key - Clé de traduction (sans le préfixe namespace).
- * @param {object} [options] - Paramètres d'interpolation i18next.
+ * @param {string} key - Translation key (without the namespace prefix).
+ * @param {object} [options] - i18next interpolation parameters.
  * @returns {string}
  */
 export function t(key, options) {
