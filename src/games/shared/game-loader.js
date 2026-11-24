@@ -63,9 +63,7 @@ function cloneCommandEvent(eventObj, params) {
     };
 }
 
-function reportLoadError(gameId, err) {
-    const url = err && err.message ? err.message : '';
-    console.error('[kiwi-games] échec du téléchargement (' + gameId + ')', url);
+function reportLoadError(gameId) {
     if (hasReportedLoadError(gameId)) return;
     markLoadError(gameId);
     if (!kiwi || !kiwi.state || typeof kiwi.state.getActiveBuffer !== 'function') return;

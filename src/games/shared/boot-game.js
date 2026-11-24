@@ -35,10 +35,7 @@ export function bootGame(gameId, init) {
     root[guard] = true;
 
     const kiwi = root.kiwi;
-    if (!kiwi || typeof kiwi.plugin !== 'function') {
-        console.error('[kiwi-games] window.kiwi.plugin indisponible — ' + gameId);
-        return;
-    }
+    if (!kiwi || typeof kiwi.plugin !== 'function') return;
 
     kiwi.plugin('kiwi-games-' + gameId, (kiwiApi) => {
         const cfg = getGameConfig(gameId, getPluginSettings());
@@ -48,8 +45,8 @@ export function bootGame(gameId, init) {
                 init(kiwiApi, cfg);
                 started = true;
             }
-        } catch (err) {
-            console.error('[kiwi-games] init ' + gameId, err);
+        } catch (_) {
+            // Une init en erreur ne doit pas bloquer le signal de chargement.
         }
 
         const queued = takeGameInbox(gameId);

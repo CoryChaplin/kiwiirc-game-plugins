@@ -16,7 +16,7 @@ Under `plugin_kiwi_games.management`:
 |---|---|---|
 | `enabled` | `true` | Runtime toggle |
 | `button` | `true` | Channel header button |
-| `gameMasterNick` | `gameMaster` | Bot nick. Required for the module to start. TAGMSG target. The header button is shown on every channel the bot is in (WHOIS after ISON) |
+| `gameMasterNick` | `gameMaster` | Bot nick. Required for the module to start. TAGMSG target. The header button is shown on the channels returned by one WHOIS at connection |
 | `requestTimeoutMs` | `8000` | Client-side request timeout |
 
 ## Transport
@@ -35,7 +35,9 @@ TAGMSG gameMaster +gm=<base64url(JSON)>
 
 The client only accepts responses whose `nick` matches `gameMasterNick` (IRC case rules when available).
 
-Before any private TAGMSG to the bot, and before the connection WHOIS, the client checks that the nick is online with **`ISON`**. If the nick is missing, **nothing is sent** (avoids `401 No such nick` spam). The result is cached for a few seconds.
+At connection the client sends one **WHOIS** to `gameMasterNick` and shows the header button on the channels from that reply. Channels are not secret, so that list is enough.
+
+Before any private TAGMSG to the bot, the client checks that the nick is online with **`ISON`**. If the nick is missing, **nothing is sent** (avoids `401 No such nick` spam). The result is cached for a few seconds.
 
 ## Request (client → bot)
 

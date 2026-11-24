@@ -1,7 +1,6 @@
 /* global kiwi:true */
 import { getConfig } from './config.js';
 import { channelNamesMatch, nicksMatch } from './network.js';
-import { ensureGameMasterOnline } from './bot-presence.js';
 
 let state = null;
 let started = false;
@@ -91,7 +90,9 @@ export function botSharesChannel(network, channelName) {
 function onWhois(event, network) {
     const nick = botNick();
     const irc = network && network.ircClient;
-    if (!nick || !network || !nicksMatch(event && event.nick, nick, irc)) return;
+    const eventNick = event && event.nick;
+    const matched = !!(nick && network && nicksMatch(eventNick, nick, irc));
+    if (!matched) return;
     if (event.error) {
         setChannels(network, []);
         return;
@@ -116,18 +117,9 @@ function sendWhois(network) {
     }
 }
 
-function whoisIfOnline(network) {
-    const nick = botNick();
-    if (!nick || !network) return;
-    ensureGameMasterOnline(network, nick).then((online) => {
-        if (!online) {
-            setChannels(network, []);
-            return;
-        }
-        sendWhois(network);
-    }).catch(() => {
-        setChannels(network, []);
-    });
+function whoisOnConnect(network) {
+    if (!botNick() || !network) return;
+    sendWhois(network);
 }
 
 function networkFromRegistered(event, network) {
@@ -136,7 +128,7 @@ function networkFromRegistered(event, network) {
     return null;
 }
 
-/** ISON the management bot at connection, then WHOIS once for its channels. */
+/** WHOIS the management bot once at connection and keep its channel list. */
 export function startBotChannelTracking() {
     if (started || !kiwi || typeof kiwi.on !== 'function') return;
     started = true;
@@ -144,12 +136,12 @@ export function startBotChannelTracking() {
     kiwi.on('irc.whois', onWhois);
     kiwi.on('irc.registered', (event, network) => {
         const net = networkFromRegistered(event, network);
-        if (net) whoisIfOnline(net);
+        if (net) whoisOnConnect(net);
     });
 
     const networks = kiwi.state && kiwi.state.networks;
     if (!Array.isArray(networks)) return;
     networks.forEach((network) => {
-        if (network && network.state === 'connected') whoisIfOnline(network);
+        if (network && network.state === 'connected') whoisOnConnect(network);
     });
 }

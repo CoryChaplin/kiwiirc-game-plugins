@@ -1,7 +1,7 @@
 /* global kiwi:true */
 import { nicksMatch } from './network.js';
 
-const ISON_TIMEOUT_MS = 4000;
+const ISON_TIMEOUT_MS = 15000;
 const CACHE_ONLINE_MS = 20000;
 const CACHE_OFFLINE_MS = 10000;
 
@@ -70,10 +70,12 @@ function detachWaiter(waiter) {
 
 function onIsonReply(event, network) {
     const nicks = nicksFromIsonEvent(event);
+    let matched = false;
     isonWaiters.forEach((waiter) => {
         if (network && waiter.network && network.id !== waiter.network.id) return;
         const irc = waiter.network && waiter.network.ircClient;
         if (nicks.some((nick) => nicksMatch(nick, waiter.botNick, irc))) {
+            matched = true;
             waiter.resolve(true);
             detachWaiter(waiter);
             return;
@@ -83,27 +85,22 @@ function onIsonReply(event, network) {
             detachWaiter(waiter);
         }
     });
+    if (!matched && network && nicks.length) {
+        nicks.forEach((nick) => markGameMasterOnline(network, nick));
+    }
 }
 
-function bindIsonListeners(network) {
-    if (!isonListenersBound && kiwi && typeof kiwi.on === 'function') {
-        isonListenersBound = true;
-        kiwi.on('irc.ison', onIsonReply);
-        kiwi.on('irc.303', onIsonReply);
-    }
-    const irc = network && network.ircClient;
-    if (irc && !irc._kiwiGmIsonBound && typeof irc.on === 'function') {
-        irc._kiwiGmIsonBound = true;
-        irc.on('ison', (event) => onIsonReply(event, network));
-        irc.on('303', (event) => onIsonReply(event, network));
-    }
+function bindIsonListeners() {
+    if (isonListenersBound || !kiwi || typeof kiwi.on !== 'function') return;
+    isonListenersBound = true;
+    kiwi.on('irc.users online', onIsonReply);
 }
 
 function probeIson(network, botNick) {
     const irc = network && network.ircClient;
     if (!irc) return Promise.resolve(false);
 
-    bindIsonListeners(network);
+    bindIsonListeners();
 
     return new Promise((resolve) => {
         const waiter = {

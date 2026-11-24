@@ -62,8 +62,9 @@ export default {
         showButton() {
             const buffer = this.buffer;
             const network = this.network;
-            if (!buffer || !network) return false;
+            if (!buffer) return false;
             if (typeof buffer.isChannel === 'function' && !buffer.isChannel()) return false;
+            if (!network) return false;
             return botSharesChannel(network, buffer.name);
         },
         isActive() {

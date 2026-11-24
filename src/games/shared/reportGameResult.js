@@ -2,27 +2,38 @@
 import { encodeJsonBase64Url } from './base64url.js';
 
 const GM_TAG = '+gm';
+const BRIDGE_KEY = '__kiwiGamesBridge';
 
-let activeGameMasterNick = '';
-let botOnlineCheck = null;
+/**
+ * Le script du jeu et le script principal sont deux bundles : chacun a sa
+ * copie de ce module. Le nick du bot et le contrôle ISON vivent sur window.
+ */
+function managementState() {
+    const root = typeof window !== 'undefined' ? window : globalThis;
+    if (!root[BRIDGE_KEY]) root[BRIDGE_KEY] = {};
+    if (!root[BRIDGE_KEY].management) {
+        root[BRIDGE_KEY].management = { nick: '', onlineCheck: null };
+    }
+    return root[BRIDGE_KEY].management;
+}
 
 /** Called when the management sub-plugin actually starts. */
 export function activateGameMaster(gameMasterNick) {
-    activeGameMasterNick = typeof gameMasterNick === 'string' ? gameMasterNick.trim() : '';
+    managementState().nick = typeof gameMasterNick === 'string' ? gameMasterNick.trim() : '';
 }
 
 /** Optional ISON gate so we never TAGMSG a missing bot nick. */
 export function setBotOnlineCheck(fn) {
-    botOnlineCheck = typeof fn === 'function' ? fn : null;
+    managementState().onlineCheck = typeof fn === 'function' ? fn : null;
 }
 
 export function getGameMasterNick() {
-    return activeGameMasterNick;
+    return managementState().nick || '';
 }
 
 /** True when management is running with a bot nick. */
 export function isManagementActive() {
-    return Boolean(activeGameMasterNick);
+    return Boolean(managementState().nick);
 }
 
 function sendTagmsg(ircClient, target, tags) {
@@ -68,11 +79,17 @@ function botTagmsg(network, payload) {
         sendTagmsg(irc, botNick, { [GM_TAG]: encodeJsonBase64Url(payload) });
     };
 
-    if (!botOnlineCheck) return;
+    const check = managementState().onlineCheck;
+    if (typeof check !== 'function') {
+        send();
+        return;
+    }
 
-    Promise.resolve(botOnlineCheck(net, botNick)).then((online) => {
-        if (online) send();
-    }).catch(() => {});
+    Promise.resolve(check(net, botNick)).then(() => {
+        send();
+    }).catch(() => {
+        send();
+    });
 }
 
 /**

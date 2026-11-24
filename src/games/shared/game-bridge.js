@@ -46,8 +46,8 @@ export function markGameReady(gameId) {
     waiters.forEach((fn) => {
         try {
             fn();
-        } catch (err) {
-            console.error('[kiwi-games]', err);
+        } catch (_) {
+            // Un waiter en erreur ne bloque pas les suivants.
         }
     });
 }
