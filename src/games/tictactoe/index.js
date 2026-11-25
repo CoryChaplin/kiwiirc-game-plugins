@@ -165,8 +165,6 @@ export function init(kiwi, config) {
             break;
         }
         default: {
-            // eslint-disable-next-line no-console
-            console.error('TicTacToe: Something bad happened', event);
             break;
         }
         }

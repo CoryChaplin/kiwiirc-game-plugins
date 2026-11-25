@@ -3,32 +3,32 @@ import { t } from '../../shared/locales.js';
 const ROWS = 6;
 const COLS = 7;
 
-// Pré-calcul de toutes les lignes gagnantes possibles (4 pions alignés)
+// Precompute every winning line (4 discs in a row)
 const WIN_LINES = (() => {
     const lines = [];
 
-    // Horizontales
+    // Horizontal
     for (let r = 0; r < ROWS; r++) {
         for (let c = 0; c <= COLS - 4; c++) {
             lines.push([[r, c], [r, c + 1], [r, c + 2], [r, c + 3]]);
         }
     }
 
-    // Verticales
+    // Vertical
     for (let c = 0; c < COLS; c++) {
         for (let r = 0; r <= ROWS - 4; r++) {
             lines.push([[r, c], [r + 1, c], [r + 2, c], [r + 3, c]]);
         }
     }
 
-    // Diagonales descendantes (↘)
+    // Diagonals down-right
     for (let r = 0; r <= ROWS - 4; r++) {
         for (let c = 0; c <= COLS - 4; c++) {
             lines.push([[r, c], [r + 1, c + 1], [r + 2, c + 2], [r + 3, c + 3]]);
         }
     }
 
-    // Diagonales montantes (↗)
+    // Diagonals up-right
     for (let r = 3; r < ROWS; r++) {
         for (let c = 0; c <= COLS - 4; c++) {
             lines.push([[r, c], [r - 1, c + 1], [r - 2, c + 2], [r - 3, c + 3]]);

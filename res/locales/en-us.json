@@ -9,6 +9,7 @@
     "common_feedback_placeholder": "Tell us what was good or what to improve...",
     "common_feedback_send": "Send feedback",
     "common_feedback_sent": "Thanks, your feedback was sent.",
+    "common_game_load_error": "This game could not be loaded. Try again in a moment.",
 
     "dropdown_title": "Games",
     "dropdown_tictactoe": "Tic-Tac-Toe",
@@ -208,7 +209,6 @@
     "mgmt_push_kicked": "You were kicked from lobby #{{id}} ({{game}}).",
     "mgmt_push_launched": "The game for lobby #{{id}} ({{game}}) has started.",
     "mgmt_push_start": "A game started — you were removed from queues and lobbies.",
-    "mgmt_queue_peer": "{{nick}} is also looking to play {{game}}, talk to them if they want to play with you.",
     "mgmt_err_no_network": "No IRC network available",
     "mgmt_err_offline": "{{nick}} is offline",
     "mgmt_err_timeout": "{{nick}} timeout ({{op}})",

@@ -1,7 +1,7 @@
 /**
- * Proxy résolvant `kiwi` depuis window.kiwi au moment de l'exécution.
- * Utilisé par webpack ProvidePlugin en mode développement (sans Kiwi IRC réel).
- * En production, KiwiIRC définit window.kiwi avant de charger les plugins.
+ * Proxy that resolves `kiwi` from window.kiwi at call time.
+ * Used by webpack ProvidePlugin in development (no real Kiwi IRC).
+ * In production, KiwiIRC sets window.kiwi before loading plugins.
  */
 function getKiwi() {
     if (typeof window === 'undefined') return undefined;

@@ -17,10 +17,40 @@
 <script>
 /* global kiwi:true */
 import { SIDEBAR_PLUGIN_ID } from '../libs/constants.js';
-import { getConfig } from '../libs/config.js';
 import { getGameStore } from '../libs/game-store.js';
 import { channelNamesMatch } from '../libs/network.js';
+import { botSharesChannel } from '../libs/bot-channels.js';
 import GamesSidebar from './GamesSidebar.vue';
+
+function networkForBuffer(buffer, fallbackNetwork) {
+    if (buffer && typeof buffer.getNetwork === 'function') {
+        const net = buffer.getNetwork();
+        if (net) return net;
+    }
+    const id = buffer && (buffer.networkid != null ? buffer.networkid : buffer.networkId);
+    if (id != null && kiwi.state && typeof kiwi.state.getNetwork === 'function') {
+        const net = kiwi.state.getNetwork(id);
+        if (net) return net;
+    }
+    return fallbackNetwork;
+}
+
+function activeBufferHasBot(fallbackNetwork) {
+    const active = kiwi.state && kiwi.state.getActiveBuffer && kiwi.state.getActiveBuffer();
+    if (!active) return false;
+    if (typeof active.isChannel === 'function' && !active.isChannel()) return false;
+    return botSharesChannel(networkForBuffer(active, fallbackNetwork), active.name);
+}
+
+function closeSidebar(sidebarState) {
+    if (sidebarState && typeof sidebarState.close === 'function') {
+        sidebarState.close();
+        return;
+    }
+    if (typeof kiwi.showInSidebar === 'function') {
+        kiwi.showInSidebar(null);
+    }
+}
 
 export default {
     props: {
@@ -32,13 +62,10 @@ export default {
         showButton() {
             const buffer = this.buffer;
             const network = this.network;
-            if (!buffer || !network) return false;
+            if (!buffer) return false;
             if (typeof buffer.isChannel === 'function' && !buffer.isChannel()) return false;
-            return channelNamesMatch(
-                buffer.name,
-                getConfig().salon,
-                network.ircClient && network.ircClient.caseCompare,
-            );
+            if (!network) return false;
+            return botSharesChannel(network, buffer.name);
         },
         isActive() {
             const sb = this.sidebarState;
@@ -49,23 +76,29 @@ export default {
     },
     watch: {
         showButton(visible) {
-            if (!visible) this.closeGamesPanel();
+            if (!visible && this.isActiveBuffer()) this.closeGamesPanel();
         },
     },
     beforeDestroy() {
-        this.closeGamesPanel();
+        if (!this.isActive) return;
+        const network = this.network;
+        const sidebarState = this.sidebarState;
+        setTimeout(() => {
+            if (activeBufferHasBot(network)) return;
+            closeSidebar(sidebarState);
+        }, 0);
     },
     methods: {
+        isActiveBuffer() {
+            const active = kiwi.state && kiwi.state.getActiveBuffer && kiwi.state.getActiveBuffer();
+            if (!active || !this.buffer) return false;
+            if (active === this.buffer) return true;
+            const cmp = this.network && this.network.ircClient && this.network.ircClient.caseCompare;
+            return channelNamesMatch(active.name, this.buffer.name, cmp);
+        },
         closeGamesPanel() {
             if (!this.isActive) return;
-            const sb = this.sidebarState;
-            if (sb && typeof sb.close === 'function') {
-                sb.close();
-                return;
-            }
-            if (typeof kiwi.showInSidebar === 'function') {
-                kiwi.showInSidebar(null);
-            }
+            closeSidebar(this.sidebarState);
         },
         onClick(event) {
             if (event && typeof event.stopPropagation === 'function') {

@@ -1,8 +1,7 @@
 /* global kiwi:true */
-import { getConfig } from './config.js';
 import { nicksMatch } from './network.js';
 
-const ISON_TIMEOUT_MS = 4000;
+const ISON_TIMEOUT_MS = 15000;
 const CACHE_ONLINE_MS = 20000;
 const CACHE_OFFLINE_MS = 10000;
 
@@ -38,32 +37,6 @@ export function markGameMasterOffline(network, botNick) {
     writeCache(cacheKey(network, botNick), false, CACHE_OFFLINE_MS);
 }
 
-function salonUsers(network, salon) {
-    if (!network || !salon) return [];
-    const getBuffer = kiwi.state && kiwi.state.getBufferByName;
-    const buffer = typeof getBuffer === 'function'
-        ? getBuffer.call(kiwi.state, network.id, salon)
-        : null;
-    if (!buffer) return [];
-    let rawUsers = null;
-    if (Array.isArray(buffer.users)) rawUsers = buffer.users;
-    else if (buffer.users && typeof buffer.users === 'object') rawUsers = Object.values(buffer.users);
-    else if (typeof buffer.getUsers === 'function') rawUsers = buffer.getUsers();
-    if (!Array.isArray(rawUsers)) return [];
-    return rawUsers.map((u) => {
-        if (!u) return '';
-        if (typeof u === 'string') return u;
-        if (typeof u.nick === 'string') return u.nick;
-        return '';
-    }).filter(Boolean);
-}
-
-function botInSalon(network, botNick) {
-    const salon = getConfig().salon;
-    const irc = network && network.ircClient;
-    return salonUsers(network, salon).some((nick) => nicksMatch(nick, botNick, irc));
-}
-
 function nicksFromIsonEvent(event) {
     if (!event) return [];
     if (Array.isArray(event.nicks)) return event.nicks.filter(Boolean);
@@ -97,10 +70,12 @@ function detachWaiter(waiter) {
 
 function onIsonReply(event, network) {
     const nicks = nicksFromIsonEvent(event);
+    let matched = false;
     isonWaiters.forEach((waiter) => {
         if (network && waiter.network && network.id !== waiter.network.id) return;
         const irc = waiter.network && waiter.network.ircClient;
         if (nicks.some((nick) => nicksMatch(nick, waiter.botNick, irc))) {
+            matched = true;
             waiter.resolve(true);
             detachWaiter(waiter);
             return;
@@ -110,27 +85,22 @@ function onIsonReply(event, network) {
             detachWaiter(waiter);
         }
     });
+    if (!matched && network && nicks.length) {
+        nicks.forEach((nick) => markGameMasterOnline(network, nick));
+    }
 }
 
-function bindIsonListeners(network) {
-    if (!isonListenersBound && kiwi && typeof kiwi.on === 'function') {
-        isonListenersBound = true;
-        kiwi.on('irc.ison', onIsonReply);
-        kiwi.on('irc.303', onIsonReply);
-    }
-    const irc = network && network.ircClient;
-    if (irc && !irc._kiwiGmIsonBound && typeof irc.on === 'function') {
-        irc._kiwiGmIsonBound = true;
-        irc.on('ison', (event) => onIsonReply(event, network));
-        irc.on('303', (event) => onIsonReply(event, network));
-    }
+function bindIsonListeners() {
+    if (isonListenersBound || !kiwi || typeof kiwi.on !== 'function') return;
+    isonListenersBound = true;
+    kiwi.on('irc.users online', onIsonReply);
 }
 
 function probeIson(network, botNick) {
     const irc = network && network.ircClient;
     if (!irc) return Promise.resolve(false);
 
-    bindIsonListeners(network);
+    bindIsonListeners();
 
     return new Promise((resolve) => {
         const waiter = {
@@ -152,8 +122,8 @@ function probeIson(network, botNick) {
 }
 
 /**
- * True if gameMaster is online. Uses the salon nicklist when possible,
- * otherwise ISON. Results are cached so we do not ISON on every click.
+ * True if gameMaster is online. ISON only: TAGMSG is sent to the bot nick.
+ * Results are cached so we do not ISON on every click.
  */
 export function ensureGameMasterOnline(network, botNick) {
     const nick = typeof botNick === 'string' ? botNick.trim() : '';
@@ -162,11 +132,6 @@ export function ensureGameMasterOnline(network, botNick) {
     const key = cacheKey(network, nick);
     const cached = readCache(key);
     if (cached != null) return Promise.resolve(cached);
-
-    if (botInSalon(network, nick)) {
-        writeCache(key, true, CACHE_ONLINE_MS);
-        return Promise.resolve(true);
-    }
 
     const pending = inflight.get(key);
     if (pending) return pending;

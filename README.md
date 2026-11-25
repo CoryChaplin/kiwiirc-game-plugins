@@ -29,19 +29,27 @@ Each game can be loaded as a standalone plugin or bundled together as a single u
    $ yarn build
    ```
 
-   The plugin will be created at `dist/plugin-kiwi-games.js`.
+   The shell is created at `dist/plugin-kiwi-games.js`.
+   Each game is a separate file under `dist/kiwi-games/` (`connectfour.js`, `tictactoe.js`, …),
+   next to `dist/kiwi-games/locales/`.
 
 2. Copy the plugin to your Kiwi webserver
 
-   Place `plugin-kiwi-games.js` somewhere reachable from a web server, e.g. a `plugins/` folder alongside your KiwiIRC files.
+   Place `plugin-kiwi-games.js` and the whole `kiwi-games/` directory somewhere reachable
+   from a web server, side by side. Example: `/plugins/plugin-kiwi-games.js` and
+   `/plugins/kiwi-games/connectfour.js`.
 
 3. Add the plugin to KiwiIRC
 
-   In your `config.json`, find the `plugins` array and add:
+   In your `config.json`, find the `plugins` array and add only the shell
+   (game scripts are downloaded when someone actually plays):
 
    ```json
    { "name": "kiwi-games", "url": "/plugins/plugin-kiwi-games.js" }
    ```
+
+   Optional: `"plugin_kiwi_games": { "gamesPath": "/plugins/kiwi-games" }` if the
+   game files are not in a `kiwi-games` folder next to the shell script.
 
 #### Building standalone plugins
 

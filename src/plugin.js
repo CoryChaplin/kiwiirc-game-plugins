@@ -1,87 +1,66 @@
 /* global kiwi:true, require,
-    __KIWI_BUILD_GAME_TICTACTOE__,
-    __KIWI_BUILD_GAME_CONNECTFOUR__,
-    __KIWI_BUILD_GAME_PICTIONARY__,
-    __KIWI_BUILD_GAME_BATTLESHIP__,
-    __KIWI_BUILD_GAME_CHESS__,
     __KIWI_BUILD_MANAGEMENT__
 */
 import GamesDropdown from './games/shared/components/GamesDropdown.vue';
 import Locales, { getPluginBasePath } from './games/shared/locales.js';
 import { BUILD_GAMES } from './build-features.js';
 import { coerceBool, getGameConfig, getPluginSettings } from './games/shared/pluginConfig.js';
+import { installGameLoader } from './games/shared/game-loader.js';
 
 /**
- * Unified Kiwi IRC plugin bundling games (and optional management) selected at build time.
+ * Kiwi IRC plugin: menu to start games, plus management when the build includes it.
+ * Each game script (dist/kiwi-games/<game>.js) is downloaded only when
+ * the user invites, joins a queue, creates or joins a lobby, or receives a TAGMSG.
  *
- * Build (what ends up in the bundle) — build.config.json or CLI:
+ * Build (what gets compiled) — build.config.json or CLI:
  *   yarn build
  *   yarn build --env exclude=chess,pictionary
  *   yarn build --env include=management
  *   yarn build --env config=./build.custom.json
  *
- * Runtime (KiwiIRC config.json), among modules already compiled in:
+ * Runtime (KiwiIRC config.json), among modules already compiled:
  *   "plugin_kiwi_games": {
+ *     "gamesPath": "https://example/plugins/kiwi-games",
  *     "tictactoe":   { "enabled": true, "button": true, "command": true },
- *     "management":  { "enabled": true, "button": true, "salon": "#jeux", "gameMasterNick": "gameMaster" }
+ *     "management":  { "enabled": true, "button": true, "gameMasterNick": "gameMaster" }
  *   }
  * Also accepted (Kiwi convention = plugin name): "kiwi-games": { ... }
  *
- * Chaque clé de jeu accepte :
- *   - enabled (bool) : active ou désactive le jeu (défaut : true)
- *   - button  (bool) : affiche le bouton dans le header de query (défaut : true)
- *   - command (bool) : enregistre une commande IRC /tictactoe|connectfour|pictionary <nick>
+ * Each game key accepts:
+ *   - enabled (bool): turn the game on or off (default: true)
+ *   - button  (bool): show the button in the query header (default: true)
+ *   - command (bool): register /tictactoe|connectfour|pictionary <nick>
+ * gamesPath (string): folder of game scripts, no trailing slash.
+ *   Default: folder of plugin-kiwi-games.js + "kiwi-games".
  */
 
-// IMPORTANT : résolu à l'évaluation du module (au moment où le script
-// plugin-kiwi-games.js est parsé), pas dans le callback kiwi.plugin(),
-// pour que `scripts[last]` pointe bien sur notre plugin et non sur un
-// plugin chargé plus tard.
-const defaultLocalesPath = getPluginBasePath() + 'kiwi-games/locales';
-
-const gameInits = {};
-
-if (__KIWI_BUILD_GAME_TICTACTOE__) {
-    gameInits.tictactoe = require('./games/tictactoe/index.js').init;
-}
-if (__KIWI_BUILD_GAME_CONNECTFOUR__) {
-    gameInits.connectfour = require('./games/connectfour/index.js').init;
-}
-if (__KIWI_BUILD_GAME_PICTIONARY__) {
-    gameInits.pictionary = require('./games/pictionary/index.js').init;
-}
-if (__KIWI_BUILD_GAME_BATTLESHIP__) {
-    gameInits.battleship = require('./games/battleship/index.js').init;
-}
-if (__KIWI_BUILD_GAME_CHESS__) {
-    gameInits.chess = require('./games/chess/index.js').init;
-}
+// Resolved when this module is evaluated (the main script is running),
+// not later: a game script injected afterwards must not change this path.
+const pluginBasePath = getPluginBasePath();
+const defaultLocalesPath = pluginBasePath + 'kiwi-games/locales';
+const defaultGamesRoot = pluginBasePath + 'kiwi-games';
 
 let initManagement = null;
 if (__KIWI_BUILD_MANAGEMENT__) {
     initManagement = require('./games/management/index.js').init;
 }
 
-kiwi.plugin('kiwi-games', function(kiwi) {
+kiwi.plugin('kiwi-games', function (kiwi) {
     const settings = getPluginSettings();
 
     const localesPath = settings.localesPath || defaultLocalesPath;
     new Locales().init(localesPath, 'kiwi-games', 'ttt_title');
 
-    let anyGameEnabled = false;
-
-    Object.keys(gameInits).forEach((id) => {
-        const cfg = getGameConfig(id, settings);
-        if (!cfg.enabled) return;
-        gameInits[id](kiwi, cfg);
-        anyGameEnabled = true;
-    });
+    const configuredGamesPath = typeof settings.gamesPath === 'string'
+        ? settings.gamesPath.trim()
+        : '';
+    const gamesRoot = (configuredGamesPath || defaultGamesRoot).replace(/\/+$/, '');
+    installGameLoader(kiwi, { gamesRoot });
 
     if (initManagement) {
         const mgmtDefaults = {
             enabled: true,
             button: true,
-            salon: '#jeux',
             gameMasterNick: 'gameMaster',
             requestTimeoutMs: 8000,
         };
@@ -92,20 +71,21 @@ kiwi.plugin('kiwi-games', function(kiwi) {
         };
         mgmtCfg.enabled = coerceBool(mgmtCfg.enabled, true);
         mgmtCfg.button = coerceBool(mgmtCfg.button, true);
-        if (typeof mgmtCfg.salon === 'string') {
-            mgmtCfg.salon = mgmtCfg.salon.trim();
+        if (typeof mgmtCfg.gameMasterNick === 'string') {
+            mgmtCfg.gameMasterNick = mgmtCfg.gameMasterNick.trim();
         } else {
-            mgmtCfg.salon = '';
+            mgmtCfg.gameMasterNick = '';
         }
         if (mgmtRaw === false) mgmtCfg.enabled = false;
-        if (mgmtCfg.enabled && mgmtCfg.salon) {
+        if (mgmtCfg.enabled && mgmtCfg.gameMasterNick) {
             initManagement(kiwi, mgmtCfg);
         }
     }
 
-    // Safety net: if the build included no games, do not show the dropdown
-    const anyBuilt = Object.keys(BUILD_GAMES).some((id) => BUILD_GAMES[id]);
-    if (anyGameEnabled && anyBuilt) {
+    const anyGameEnabled = Object.keys(BUILD_GAMES).some((id) => (
+        BUILD_GAMES[id] && getGameConfig(id, settings).enabled
+    ));
+    if (anyGameEnabled) {
         kiwi.addUi('header_query', GamesDropdown);
     }
 });

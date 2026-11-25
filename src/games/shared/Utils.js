@@ -1,4 +1,4 @@
-// kiwi injecté comme global via webpack ProvidePlugin (src/kiwi-runtime.js)
+// kiwi is injected as a global via webpack ProvidePlugin (src/kiwi-runtime.js)
 
 export function incrementUnread(buffer) {
     const activeBuffer = kiwi.state.getActiveBuffer();

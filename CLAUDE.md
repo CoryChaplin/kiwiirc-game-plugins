@@ -1,7 +1,7 @@
 # CLAUDE.md — kiwiirc-game-plugins
 
 Monorepo de **plugins Kiwi IRC** qui ajoutent des jeux multijoueurs peer-to-peer en messages privés.
-Tout le code source vit dans `src/games/` et est packagé en un seul plugin unifié via le build racine.
+Tout le code source vit dans `src/games/`. Le build produit un script principal léger et un script par jeu, chargé seulement quand on y joue.
 
 ## Games
 
@@ -15,17 +15,23 @@ Tout le code source vit dans `src/games/` et est packagé en un seul plugin unif
 
 ```bash
 yarn          # Installer les dépendances root
-yarn build    # → dist/plugin-kiwi-games.js  (production)
+yarn build    # → dist/plugin-kiwi-games.js + dist/kiwi-games/<jeu>.js
 yarn watch    # Webpack watch (développement)
 yarn dev      # Dev server port 9002 (CORS activé)
 yarn build:tictactoe  # Build standalone du fork Tictactoe/ (upstream PRs)
 ```
 
+Kiwi ne charge que `plugin-kiwi-games.js` (menu, commandes, management si `include=management`).
+Les fichiers `dist/kiwi-games/*.js` restent à côté : le client les télécharge à l'invitation,
+à l'entrée en file, à la création ou l'entrée dans un lobby, ou à la réception d'un TAGMSG de ce jeu.
+`gamesPath` (config runtime) peut pointer vers ce dossier ; sinon il est déduit de l'URL du script principal.
+
 ## Architecture du plugin unifié
 
 ```
 src/
-├── plugin.js        # kiwi.plugin('kiwi-games', ...) — lit la config, init chaque jeu
+├── plugin.js        # kiwi.plugin('kiwi-games', ...) — menu, management, chargeur des jeux
+├── games/<jeu>/boot.js  # entrée du script lazy dist/kiwi-games/<jeu>.js
 ├── kiwi-runtime.js  # Proxy window.kiwi (pour webpack ProvidePlugin)
 └── games/
     ├── shared/
@@ -52,7 +58,8 @@ src/
 ### Pattern index.js
 
 Chaque jeu expose `export function init(kiwi, config)` — reçoit kiwi en paramètre, aucun global.
-`src/plugin.js` appelle `init(kiwi, cfg.<game>)` conditionnellement selon `cfg.<game>.enabled`.
+`src/games/<jeu>/boot.js` appelle `init` une fois le script téléchargé. `src/plugin.js` ne l'importe pas :
+il ne fait qu'afficher le menu et injecter `kiwi-games/<jeu>.js` au moment de jouer.
 
 ### Utilitaires partagés (src/games/shared/Utils.js)
 
@@ -77,6 +84,7 @@ Chaque jeu expose `export function init(kiwi, config)` — reçoit kiwi en param
 | `button` | bool | `true` | Affiche le bouton dans le header de la query |
 | `command` | bool | `true` | Enregistre `/tictactoe\|connectfour\|pictionary <nick>` |
 | `localesPath` | string | auto-détecté | URL du dossier de locales (sans `/`  final). Par défaut : dossier du script + `kiwi-games/locales`. |
+| `gamesPath` | string | auto-détecté | Dossier des scripts `tictactoe.js`, `connectfour.js`, etc. Défaut : dossier du script + `kiwi-games`. |
 
 ## Localisation
 

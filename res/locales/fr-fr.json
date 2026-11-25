@@ -9,6 +9,7 @@
     "common_feedback_placeholder": "Dis-nous ce qui était bien ou à améliorer...",
     "common_feedback_send": "Envoyer mon retour",
     "common_feedback_sent": "Merci, ton retour a été envoyé.",
+    "common_game_load_error": "Impossible de charger ce jeu. Réessaie dans un instant.",
 
     "dropdown_title": "Jeux",
     "dropdown_tictactoe": "Morpion",
@@ -208,7 +209,6 @@
     "mgmt_push_kicked": "Tu as été exclu du lobby #{{id}} ({{game}}).",
     "mgmt_push_launched": "La partie du lobby #{{id}} ({{game}}) a démarré.",
     "mgmt_push_start": "Une partie a démarré — tu as été retiré des files et lobbies.",
-    "mgmt_queue_peer": "{{nick}} cherche aussi à jouer à {{game}}, parle-lui pour savoir si elle veut jouer avec vous.",
     "mgmt_err_no_network": "Aucun réseau IRC disponible",
     "mgmt_err_offline": "{{nick}} est hors ligne",
     "mgmt_err_timeout": "Timeout {{nick}} ({{op}})",
