@@ -8,9 +8,12 @@
     >
         <a
             :title="$t('kiwi-games:mgmt_button_title')"
-            href="#"
+            :aria-label="$t('kiwi-games:mgmt_button_title')"
+            role="button"
+            tabindex="0"
             @click.prevent="onClick"
-        ><span class="kiwi-header-option-games-icon" aria-hidden="true">🎮</span></a>
+            @keydown.enter.space.prevent="onClick"
+        ><i class="kiwi-header-option-games-icon" aria-hidden="true">🎮</i></a>
     </div>
 </template>
 
@@ -125,16 +128,9 @@ export default {
     display: none !important;
 }
 
-.kiwi-header-option-games a {
-    font-size: inherit;
-    line-height: 43px;
-    min-width: 38px;
-    padding: 0 10px;
-}
-
-.kiwi-header-option-games a .kiwi-header-option-games-icon {
-    font-size: 1.4em;
-    line-height: 43px;
-    display: block;
+/* The emoji takes the size of the native header icons; an <i> keeps it visible where the
+   theme hides header labels (<span>) on narrow screens. */
+.kiwi-header-option-games-icon {
+    font-style: normal;
 }
 </style>
